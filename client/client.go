@@ -48,10 +48,12 @@ func (s *Slot) Free() {
     close(s.ResponseChannel)
 }
 
+// Creates a new instance of AMQP connection.
 func NewBroker(amqpUrl string) (*amqp.Connection, error) {
     return amqp.Dial(amqpUrl)
 }
 
+// Creates a new instance of Client, responsible for making remote calls.
 func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Client, error) {
     ch, err := conn.Channel()
 
@@ -132,10 +134,14 @@ func (c *Client) start() {
     }()
 }
 
+// Calls a remote procedure/service with the given name and arguments, using default TTL.
+// It returns a Response channel where you can get you response data from.
 func (c *Client) Call(method string, args ...interface{}) chan Response {
     return c.CallWithTTL(c.defaultTTL, method, args)
 }
 
+// Calls a remote procedure/service with the given tll, name and arguments.
+// It returns a Response channel where you can get you response data from.
 func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan Response {
     arguments, err := json.Marshal(args)
 
@@ -195,7 +201,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan
     return responseChannel
 }
 
-// Call a remote service method with will not provide any return value.
+// Call a remote service procedure/service which will not provide any return value.
 func (c *Client) CallVoid(method string, args ...interface{}) {
     arguments, err := json.Marshal(args)
 
@@ -218,6 +224,8 @@ func (c *Client) CallVoid(method string, args ...interface{}) {
     }
 }
 
+
+// Close the client and AMQP chanel.
 func (c *Client) Close() {
     c.channel.Close()
 }
