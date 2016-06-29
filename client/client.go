@@ -28,7 +28,6 @@ type Slot struct {
 type Client struct {
     serviceName string
     defaultTTL int64
-    connection *amqp.Connection
     channel *amqp.Channel
     deliveryChannel <-chan amqp.Delivery
     responseQueue *amqp.Queue
@@ -89,7 +88,6 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
     c := &Client{
         serviceName,
         defaultTTL,
-        conn,
         ch,
         dc,
         &q,
@@ -221,8 +219,22 @@ func (c *Client) CallVoid(method string, args ...interface{}) {
 }
 
 func (c *Client) Close() {
-    c.connection.Close()
     c.channel.Close()
+}
+
+func (c *Client) getFreeSlot() (*Slot, error) {
+    for index, s := range c.slots {
+        if !s.InUse {
+            c.slots[index].InUse = true
+            c.slots[index].RequestTime = time.Now()
+            c.slots[index].ResponseChannel = make(chan Response)
+            c.slots[index].MessageId = c.lastMessageId + 1
+            c.slots[index].Index = index
+            return &c.slots[index], nil
+        }
+    }
+
+    return nil, errors.New("There's not free slot to get")
 }
 
 func unmarshallCorrelationId(correlationId string) (int, uint32, error) {
@@ -245,19 +257,4 @@ func unmarshallCorrelationId(correlationId string) (int, uint32, error) {
     }
 
     return index, uint32(messageId), nil
-}
-
-func (c *Client) getFreeSlot() (*Slot, error) {
-    for index, s := range c.slots {
-        if !s.InUse {
-            c.slots[index].InUse = true
-            c.slots[index].RequestTime = time.Now()
-            c.slots[index].ResponseChannel = make(chan Response)
-            c.slots[index].MessageId = c.lastMessageId + 1
-            c.slots[index].Index = index
-            return &c.slots[index], nil
-        }
-    }
-
-    return nil, errors.New("There's not free slot to get")
 }

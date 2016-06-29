@@ -14,12 +14,16 @@ func main() {
         panic(err)
     }
 
+    defer broker.Close()
+
     userService, err := client.NewClient(broker, "UserService", 120)
 
     if err != nil {
         fmt.Printf("Error creating client")
         panic(err)
     }
+
+    defer userService.Close()
 
     userService.CallVoid("doSomething", 20)
     fmt.Println("Service userService.doSomething invoked")
@@ -32,6 +36,4 @@ func main() {
     } else {
         fmt.Printf("Response: %#v\n", response.Data)
     }
-
-    userService.Close()
 }
