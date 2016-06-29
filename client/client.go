@@ -27,6 +27,7 @@ type Slot struct {
 
 type Client struct {
     serviceName string
+    defaultTTL int64
     connection *amqp.Connection
     channel *amqp.Channel
     deliveryChannel <-chan amqp.Delivery
@@ -52,7 +53,7 @@ func NewBroker(amqpUrl string) (*amqp.Connection, error) {
     return amqp.Dial(amqpUrl)
 }
 
-func NewClient(conn *amqp.Connection, serviceName string) (*Client, error) {
+func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Client, error) {
     ch, err := conn.Channel()
 
     if err != nil {
@@ -87,6 +88,7 @@ func NewClient(conn *amqp.Connection, serviceName string) (*Client, error) {
 
     c := &Client{
         serviceName,
+        defaultTTL,
         conn,
         ch,
         dc,
@@ -132,7 +134,11 @@ func (c *Client) start() {
     }()
 }
 
-func (c *Client) Call(ttl int64, method string, args ...interface{}) chan Response {
+func (c *Client) Call(method string, args ...interface{}) chan Response {
+    return c.CallWithTTL(c.defaultTTL, method, args)
+}
+
+func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan Response {
     arguments, err := json.Marshal(args)
 
     if err != nil {
@@ -192,7 +198,7 @@ func (c *Client) Call(ttl int64, method string, args ...interface{}) chan Respon
 }
 
 // Call a remote service method with will not provide any return value.
-func (c *Client) CallVoid(ttl int64, method string, args ...interface{}) {
+func (c *Client) CallVoid(method string, args ...interface{}) {
     arguments, err := json.Marshal(args)
 
     if err != nil {
@@ -205,7 +211,6 @@ func (c *Client) CallVoid(ttl int64, method string, args ...interface{}) {
         false,          // mandatory
         false,          // immediate
         amqp.Publishing{
-                Expiration:    strconv.FormatInt(ttl, 10),
                 ContentType:   "application/json",
                 Body:          []byte(arguments),
         })

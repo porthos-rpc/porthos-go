@@ -14,23 +14,20 @@ func main() {
         panic(err)
     }
 
-    userService, err := client.NewClient(broker, "UserService")
+    userService, err := client.NewClient(broker, "UserService", 120)
 
     if err != nil {
         fmt.Printf("Error creating client")
         panic(err)
     }
 
-    userService.CallVoid(120, "doSomething", 20)
-    fmt.Println("Service userService.doSomething executed")
+    userService.CallVoid("doSomething", 20)
+    fmt.Println("Service userService.doSomething invoked")
 
-    ch := userService.Call(50, "doSomethingThatReturnsValue", 20)
-    fmt.Println("Service userService.doSomethingThatReturnsValue executed. Waiting for response")
+    ch := userService.Call("doSomethingThatReturnsValue", 20)
+    fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
-    // consume the response
-    response := <-ch
-
-    if response.Timeout {
+    if response := <-ch; response.Timeout {
         fmt.Println("Timedout")
     } else {
         fmt.Printf("Response: %#v\n", response.Data)
