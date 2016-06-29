@@ -115,21 +115,24 @@ func (c *Client) start() {
                 continue
             }
 
-            c.slotsLock.Lock()
-            slot := c.slots[index]
+            func() {
+                c.slotsLock.Lock()
+                defer c.slotsLock.Unlock()
 
-            if slot.MessageId == messageId {
-                var jsonResponse interface{}
+                slot := c.slots[index]
 
-                if d.ContentType == "application/json" && json.Unmarshal(d.Body, jsonResponse) == nil {
-                    slot.ResponseChannel <- Response{jsonResponse, false}
-                } else {
-                    slot.ResponseChannel <- Response{d.Body, false}
+                if slot.MessageId == messageId {
+                    var jsonResponse interface{}
+
+                    if d.ContentType == "application/json" && json.Unmarshal(d.Body, jsonResponse) == nil {
+                        slot.ResponseChannel <- Response{jsonResponse, false}
+                    } else {
+                        slot.ResponseChannel <- Response{d.Body, false}
+                    }
+
+                    slot.Free()
                 }
-
-                slot.Free()
-            }
-            c.slotsLock.Unlock()
+            }()
         }
     }()
 }
