@@ -3,6 +3,7 @@ package client
 import (
     "fmt"
     "time"
+    "sync"
     "errors"
     "strings"
     "strconv"
@@ -33,6 +34,7 @@ type Client struct {
 
     lastMessageId uint32
     slots []Slot // client concurrency
+    slotsLock *sync.Mutex
 }
 
 func (s *Slot) GetCorrelationId() string {
@@ -91,6 +93,7 @@ func NewClient(conn *amqp.Connection, serviceName string) (*Client, error) {
         &q,
         0,
         slots,
+        &sync.Mutex{},
     }
 
     c.start()
@@ -110,6 +113,7 @@ func (c *Client) start() {
                 continue
             }
 
+            c.slotsLock.Lock()
             slot := c.slots[index]
 
             if slot.MessageId == messageId {
@@ -123,6 +127,7 @@ func (c *Client) start() {
 
                 slot.Free()
             }
+            c.slotsLock.Unlock()
         }
     }()
 }
@@ -134,11 +139,25 @@ func (c *Client) Call(ttl int64, method string, args ...interface{}) chan Respon
         panic(err)
     }
 
-    slot, err := c.getFreeSlot()
+    var messageId uint32
+    var correlationId string
+    var responseChannel chan Response
+    var slot *Slot
 
-    if err != nil {
-        panic(err)
-    }
+    func() {
+        c.slotsLock.Lock()
+        defer c.slotsLock.Unlock()
+
+        slot, err = c.getFreeSlot()
+
+        if err != nil {
+            panic(err)
+        }
+
+        messageId = slot.MessageId
+        responseChannel = slot.ResponseChannel
+        correlationId = slot.GetCorrelationId()
+    }()
 
     err = c.channel.Publish(
         "",             // exchange
@@ -148,7 +167,7 @@ func (c *Client) Call(ttl int64, method string, args ...interface{}) chan Respon
         amqp.Publishing{
                 Expiration:    strconv.FormatInt(ttl, 10),
                 ContentType:   "application/json",
-                CorrelationId: slot.GetCorrelationId(),
+                CorrelationId: correlationId,
                 ReplyTo:       c.responseQueue.Name,
                 Body:          []byte(arguments),
         })
@@ -159,11 +178,17 @@ func (c *Client) Call(ttl int64, method string, args ...interface{}) chan Respon
 
     // schedule a slot cleanup after TTL value.
     time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {
-        slot.ResponseChannel <- Response{nil, true}
-        slot.Free()
+        c.slotsLock.Lock()
+        defer c.slotsLock.Unlock()
+
+        // check if this slot is still bing used by the same request
+        if slot.MessageId == messageId {
+            slot.ResponseChannel <- Response{nil, true}
+            slot.Free()
+        }
     })
 
-    return slot.ResponseChannel
+    return responseChannel
 }
 
 // Call a remote service method with will not provide any return value.
