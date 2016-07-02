@@ -28,12 +28,13 @@ func main() {
     userService.CallVoid("doSomething", 20)
     fmt.Println("Service userService.doSomething invoked")
 
-    ch := userService.Call("doSomethingThatReturnsValue", 20)
+    response, timeout := userService.Call("doSomethingThatReturnsValue", 20)
     fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
-    if response := <-ch; response.Timeout {
-        fmt.Println("Timedout")
-    } else {
-        fmt.Printf("Response: %#v\n", response.Data)
+    select {
+    case res := <- response:
+        fmt.Printf("Response: %#v\n", res)
+    case <- timeout:
+        fmt.Println("Timed out :(")
     }
 }

@@ -12,15 +12,13 @@ import (
     "github.com/streadway/amqp"
 )
 
-type Response struct {
-    Data interface{}
-    Timeout bool
-}
+type Response interface{}
 
 type Slot struct {
     InUse bool
     RequestTime time.Time
     ResponseChannel chan Response
+    TimeoutChannel chan bool
     MessageId uint32
     Index int
 }
@@ -125,9 +123,9 @@ func (c *Client) start() {
                     var jsonResponse interface{}
 
                     if d.ContentType == "application/json" && json.Unmarshal(d.Body, jsonResponse) == nil {
-                        slot.ResponseChannel <- Response{jsonResponse, false}
+                        slot.ResponseChannel <- jsonResponse
                     } else {
-                        slot.ResponseChannel <- Response{d.Body, false}
+                        slot.ResponseChannel <- d.Body
                     }
 
                     slot.Free()
@@ -139,13 +137,13 @@ func (c *Client) start() {
 
 // Calls a remote procedure/service with the given name and arguments, using default TTL.
 // It returns a Response channel where you can get you response data from.
-func (c *Client) Call(method string, args ...interface{}) chan Response {
+func (c *Client) Call(method string, args ...interface{}) (chan Response, chan bool) {
     return c.CallWithTTL(c.defaultTTL, method, args)
 }
 
 // Calls a remote procedure/service with the given tll, name and arguments.
 // It returns a Response channel where you can get you response data from.
-func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan Response {
+func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (chan Response, chan bool) {
     arguments, err := json.Marshal(args)
 
     if err != nil {
@@ -155,6 +153,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan
     var messageId uint32
     var correlationId string
     var responseChannel chan Response
+    var timeoutChannel chan bool
     var slot *Slot
 
     func() {
@@ -169,6 +168,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan
 
         messageId = slot.MessageId
         responseChannel = slot.ResponseChannel
+        timeoutChannel = slot.TimeoutChannel
         correlationId = slot.GetCorrelationId()
     }()
 
@@ -196,12 +196,12 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) chan
 
         // check if this slot is still bing used by the same request
         if slot.MessageId == messageId {
-            slot.ResponseChannel <- Response{nil, true}
+            slot.TimeoutChannel <- true
             slot.Free()
         }
     })
 
-    return responseChannel
+    return responseChannel, timeoutChannel
 }
 
 // Call a remote service procedure/service which will not provide any return value.
@@ -239,6 +239,7 @@ func (c *Client) getFreeSlot() (*Slot, error) {
             c.slots[index].InUse = true
             c.slots[index].RequestTime = time.Now()
             c.slots[index].ResponseChannel = make(chan Response)
+            c.slots[index].TimeoutChannel = make(chan bool)
             c.slots[index].MessageId = c.lastMessageId + 1
             c.slots[index].Index = index
             return &c.slots[index], nil
