@@ -68,3 +68,14 @@ userService.Register("doSomethingThatReturnsString", func(args []interface{}) in
 fmt.Println("RPC server is waiting for incoming requests...")
 userService.ServeForever()
 ```
+
+## Contributing
+
+Pull requests are very much welcomed. Make sure a test or example is included that covers your change.
+
+Docker is being used for the local environment. To build/run/test your code you can bash into the server container:
+
+```sh
+$ docker-compose run server bash
+root@porthos:/go/src/github.com/gfronza/porthos# go run example_client.go
+```
