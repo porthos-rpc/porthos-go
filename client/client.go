@@ -35,6 +35,11 @@ type Client struct {
     slotsLock *sync.Mutex
 }
 
+type messageBody struct {
+    Method  string          `json:"method"`
+    Args    []interface{}   `json:"args"`
+}
+
 func (s *Slot) GetCorrelationId() string {
     return fmt.Sprintf("%d.%d", s.Index, s.MessageId)
 }
@@ -144,7 +149,7 @@ func (c *Client) Call(method string, args ...interface{}) (chan Response, chan b
 // Calls a remote procedure/service with the given tll, name and arguments.
 // It returns a Response channel where you can get you response data from.
 func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (chan Response, chan bool) {
-    arguments, err := json.Marshal(args)
+    body, err := json.Marshal(&messageBody{method, args})
 
     if err != nil {
         panic(err)
@@ -182,7 +187,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (cha
                 ContentType:   "application/json",
                 CorrelationId: correlationId,
                 ReplyTo:       c.responseQueue.Name,
-                Body:          []byte(arguments),
+                Body:          body,
         })
 
     if err != nil {
@@ -206,7 +211,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (cha
 
 // Call a remote service procedure/service which will not provide any return value.
 func (c *Client) CallVoid(method string, args ...interface{}) {
-    arguments, err := json.Marshal(args)
+    body, err := json.Marshal(&messageBody{method, args})
 
     if err != nil {
         panic(err)
@@ -219,7 +224,7 @@ func (c *Client) CallVoid(method string, args ...interface{}) {
         false,          // immediate
         amqp.Publishing{
                 ContentType:   "application/json",
-                Body:          []byte(arguments),
+                Body:          body,
         })
 
     if err != nil {
