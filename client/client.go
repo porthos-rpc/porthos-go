@@ -10,6 +10,7 @@ import (
     "encoding/json"
 
     "github.com/streadway/amqp"
+    "github.com/gfronza/porthos/message"
 )
 
 type Response interface{}
@@ -33,11 +34,6 @@ type Client struct {
     lastMessageId uint32
     slots []Slot // client concurrency
     slotsLock *sync.Mutex
-}
-
-type messageBody struct {
-    Method  string          `json:"method"`
-    Args    []interface{}   `json:"args"`
 }
 
 func (s *Slot) GetCorrelationId() string {
@@ -126,8 +122,17 @@ func (c *Client) start() {
 
                 if slot.MessageId == messageId {
                     var jsonResponse interface{}
+                    var err error
 
-                    if d.ContentType == "application/json" && json.Unmarshal(d.Body, jsonResponse) == nil {
+                    if d.ContentType == "application/json" {
+                        err = json.Unmarshal(d.Body, &jsonResponse)
+                        if err != nil {
+                            fmt.Println("Unmarshal error: ", err.Error())
+                        }
+
+                    }
+
+                    if jsonResponse != nil {
                         slot.ResponseChannel <- jsonResponse
                     } else {
                         slot.ResponseChannel <- d.Body
@@ -148,8 +153,8 @@ func (c *Client) Call(method string, args ...interface{}) (chan Response, chan b
 
 // Calls a remote procedure/service with the given tll, name and arguments.
 // It returns a Response channel where you can get you response data from.
-func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (chan Response, chan bool) {
-    body, err := json.Marshal(&messageBody{method, args})
+func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan Response, chan bool) {
+    body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {
         panic(err)
@@ -211,7 +216,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (cha
 
 // Call a remote service procedure/service which will not provide any return value.
 func (c *Client) CallVoid(method string, args ...interface{}) {
-    body, err := json.Marshal(&messageBody{method, args})
+    body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {
         panic(err)
