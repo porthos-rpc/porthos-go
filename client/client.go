@@ -35,25 +35,9 @@ type Client struct {
     slotsLock *sync.Mutex
 }
 
-type MessageBody struct {
-    Method  string
-    Args    []interface{}
-}
-
-func (m *MessageBody) Marshal() ([]byte, error){
-    // To not call directly json.Marshal(MessageBody),
-    // maybe some fields in future cannot be exposed, and need specific treatments.
-    type _messageBody struct {
-        Method  string          `json:"method"`
-        Args    []interface{}   `json:"args"`
-    }
-
-    out := &_messageBody{
-        Method: m.Method,
-        Args:   m.Args,
-    }
-
-    return json.Marshal(out)
+type messageBody struct {
+    Method  string          `json:"method"`
+    Args    []interface{}   `json:"args"`
 }
 
 func (s *Slot) GetCorrelationId() string {
@@ -165,8 +149,7 @@ func (c *Client) Call(method string, args ...interface{}) (chan Response, chan b
 // Calls a remote procedure/service with the given tll, name and arguments.
 // It returns a Response channel where you can get you response data from.
 func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (chan Response, chan bool) {
-    message := &MessageBody{method, args}
-    body, err := message.Marshal()
+    body, err := json.Marshal(&messageBody{method, args})
 
     if err != nil {
         panic(err)
@@ -228,8 +211,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (cha
 
 // Call a remote service procedure/service which will not provide any return value.
 func (c *Client) CallVoid(method string, args ...interface{}) {
-    message := &MessageBody{method, args}
-    body, err := message.Marshal()
+    body, err := json.Marshal(&messageBody{method, args})
 
     if err != nil {
         panic(err)
