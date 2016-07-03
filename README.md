@@ -2,6 +2,14 @@
 
 A RPC library for the Go programming language that operates over AMQP.
 
+## Status
+
+Beta. Server API may change a bit.
+
+## Goal
+
+Provide a language-agnostic RPC library to write distributed systems.
+
 ## Client
 
 The client is very simple. `NewClient` takes a broker, a `service name` and a timeout value (message TTL). The `service name` is only intended to serve as the request `routing key` (meaning every `service name` (or microservice) has its own queue).
@@ -33,4 +41,30 @@ case <- timeout:
 
 ## Server
 
-Work in progress...
+The server also takes a broker and a `service name`. After that, you `Register` all your handlers and finally `ServeForever`.
+
+```go
+broker, _ := server.NewBroker(os.Getenv("AMQP_URL"))
+defer broker.Close()
+
+userService, _ := server.NewServer(broker, "UserService")
+defer userService.Close()
+
+userService.Register("doSomethingThatReturnsValue", func(args []interface{}) interface{} {
+    type test struct {
+        Original    float64 `json:"original"`
+        Sum         float64 `json:"sum"`
+    }
+
+    x := args[0].(float64)
+
+    return test{x, x+1}
+})
+
+userService.Register("doSomethingThatReturnsString", func(args []interface{}) interface{} {
+    return fmt.Sprintf("Hello %s", args[0].(string))
+})
+
+fmt.Println("RPC server is waiting for incoming requests...")
+userService.ServeForever()
+```
