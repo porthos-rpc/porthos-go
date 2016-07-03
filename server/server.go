@@ -96,7 +96,7 @@ func (s *Server) start() {
                 funcReturn := fun(msg.Args)
 
                 if funcReturn == nil {
-                    fmt.Println("Exectuion whitout response.")
+                    fmt.Println("Execution whitout response.")
                     continue
                 }
 
