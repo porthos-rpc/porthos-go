@@ -13,17 +13,16 @@ import (
     "github.com/gfronza/porthos/message"
 )
 
-type Response interface{}
-
-type Slot struct {
+type slot struct {
     InUse bool
     RequestTime time.Time
-    ResponseChannel chan Response
+    ResponseChannel chan interface{}
     TimeoutChannel chan bool
-    MessageId uint32
+    MessageID uint32
     Index int
 }
 
+// Client is an entry point for making remote calls.
 type Client struct {
     serviceName string
     defaultTTL int64
@@ -31,28 +30,28 @@ type Client struct {
     deliveryChannel <-chan amqp.Delivery
     responseQueue *amqp.Queue
 
-    lastMessageId uint32
-    slots []Slot // client concurrency
+    lastMessageID uint32
+    slots []slot // client concurrency
     slotsLock *sync.Mutex
 }
 
-func (s *Slot) GetCorrelationId() string {
-    return fmt.Sprintf("%d.%d", s.Index, s.MessageId)
+func (s *slot) getCorrelationID() string {
+    return fmt.Sprintf("%d.%d", s.Index, s.MessageID)
 }
 
-func (s *Slot) Free() {
+func (s *slot) free() {
     s.InUse = false
-    s.MessageId = 0
+    s.MessageID = 0
     s.Index = -1
     close(s.ResponseChannel)
 }
 
-// Creates a new instance of AMQP connection.
-func NewBroker(amqpUrl string) (*amqp.Connection, error) {
-    return amqp.Dial(amqpUrl)
+// NewBroker creates a new instance of AMQP connection.
+func NewBroker(amqpURL string) (*amqp.Connection, error) {
+    return amqp.Dial(amqpURL)
 }
 
-// Creates a new instance of Client, responsible for making remote calls.
+// NewClient creates a new instance of Client, responsible for making remote calls.
 func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Client, error) {
     ch, err := conn.Channel()
 
@@ -84,7 +83,7 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
         return nil, err
     }
 
-    slots := make([]Slot, 20000)
+    slots := make([]slot, 20000)
 
     c := &Client{
         serviceName,
@@ -105,7 +104,7 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
 func (c *Client) start() {
     go func() {
         for d := range c.deliveryChannel {
-            index, messageId, err := unmarshallCorrelationId(d.CorrelationId)
+            index, messageID, err := unmarshallCorrelationID(d.CorrelationId)
 
             if err != nil {
                 fmt.Println(err)
@@ -120,7 +119,7 @@ func (c *Client) start() {
 
                 slot := c.slots[index]
 
-                if slot.MessageId == messageId {
+                if slot.MessageID == messageID {
                     var jsonResponse interface{}
                     var err error
 
@@ -138,33 +137,33 @@ func (c *Client) start() {
                         slot.ResponseChannel <- d.Body
                     }
 
-                    slot.Free()
+                    slot.free()
                 }
             }()
         }
     }()
 }
 
-// Calls a remote procedure/service with the given name and arguments, using default TTL.
-// It returns a Response channel where you can get you response data from.
-func (c *Client) Call(method string, args ...interface{}) (chan Response, chan bool) {
+// Call calls a remote procedure/service with the given name and arguments, using default TTL.
+// It returns a interface{} channel where you can get you response data from.
+func (c *Client) Call(method string, args ...interface{}) (chan interface{}, chan bool) {
     return c.CallWithTTL(c.defaultTTL, method, args)
 }
 
-// Calls a remote procedure/service with the given tll, name and arguments.
-// It returns a Response channel where you can get you response data from.
-func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan Response, chan bool) {
+// CallWithTTL calls a remote procedure/service with the given tll, name and arguments.
+// It returns a interface{} channel where you can get you response data from.
+func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan interface{}, chan bool) {
     body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {
         panic(err)
     }
 
-    var messageId uint32
-    var correlationId string
-    var responseChannel chan Response
+    var messageID uint32
+    var correlationID string
+    var responseChannel chan interface{}
     var timeoutChannel chan bool
-    var slot *Slot
+    var slot *slot
 
     func() {
         c.slotsLock.Lock()
@@ -176,10 +175,10 @@ func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan
             panic(err)
         }
 
-        messageId = slot.MessageId
+        messageID = slot.MessageID
         responseChannel = slot.ResponseChannel
         timeoutChannel = slot.TimeoutChannel
-        correlationId = slot.GetCorrelationId()
+        correlationID = slot.getCorrelationID()
     }()
 
     err = c.channel.Publish(
@@ -190,7 +189,7 @@ func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan
         amqp.Publishing{
                 Expiration:    strconv.FormatInt(ttl, 10),
                 ContentType:   "application/json",
-                CorrelationId: correlationId,
+                CorrelationId: correlationID,
                 ReplyTo:       c.responseQueue.Name,
                 Body:          body,
         })
@@ -205,16 +204,16 @@ func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan
         defer c.slotsLock.Unlock()
 
         // check if this slot is still bing used by the same request
-        if slot.MessageId == messageId {
+        if slot.MessageID == messageID {
             slot.TimeoutChannel <- true
-            slot.Free()
+            slot.free()
         }
     })
 
     return responseChannel, timeoutChannel
 }
 
-// Call a remote service procedure/service which will not provide any return value.
+// CallVoid calls a remote service procedure/service which will not provide any return value.
 func (c *Client) CallVoid(method string, args ...interface{}) {
     body, err := json.Marshal(&message.MessageBody{method, args})
 
@@ -243,14 +242,14 @@ func (c *Client) Close() {
     c.channel.Close()
 }
 
-func (c *Client) getFreeSlot() (*Slot, error) {
+func (c *Client) getFreeSlot() (*slot, error) {
     for index, s := range c.slots {
         if !s.InUse {
             c.slots[index].InUse = true
             c.slots[index].RequestTime = time.Now()
-            c.slots[index].ResponseChannel = make(chan Response)
+            c.slots[index].ResponseChannel = make(chan interface{})
             c.slots[index].TimeoutChannel = make(chan bool)
-            c.slots[index].MessageId = c.lastMessageId + 1
+            c.slots[index].MessageID = c.lastMessageID + 1
             c.slots[index].Index = index
             return &c.slots[index], nil
         }
@@ -259,11 +258,11 @@ func (c *Client) getFreeSlot() (*Slot, error) {
     return nil, errors.New("There's not free slot to get")
 }
 
-func unmarshallCorrelationId(correlationId string) (int, uint32, error) {
-    s := strings.Split(correlationId, ".")
+func unmarshallCorrelationID(correlationID string) (int, uint32, error) {
+    s := strings.Split(correlationID, ".")
 
     if len(s) != 2 {
-        return 0, 0, errors.New(fmt.Sprintf("Could not unmarshall correlationId [%s]", correlationId))
+        return 0, 0, errors.New(fmt.Sprintf("Could not unmarshall correlationID [%s]", correlationID))
     }
 
     index, err := strconv.Atoi(s[0])
@@ -272,11 +271,11 @@ func unmarshallCorrelationId(correlationId string) (int, uint32, error) {
         return 0, 0, err
     }
 
-    messageId, err := strconv.ParseUint(s[1], 10, 32)
+    messageID, err := strconv.ParseUint(s[1], 10, 32)
 
     if err != nil {
         return 0, 0, err
     }
 
-    return index, uint32(messageId), nil
+    return index, uint32(messageID), nil
 }

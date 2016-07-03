@@ -29,7 +29,7 @@ func main() {
     userService.CallVoid("doSomething", 20)
     fmt.Println("Service userService.doSomething invoked")
 
-    var response chan client.Response
+    var response chan interface{}
     var timeout chan bool
 
     response, timeout = userService.Call("doSomethingThatReturnsValue", 21)
