@@ -3,7 +3,6 @@ package main
 import (
     "fmt"
     "os"
-    "time"
 
     "github.com/gfronza/porthos/server"
 )
@@ -46,8 +45,6 @@ func main() {
         return fmt.Sprintf("Hello %s", args[0].(string))
     })
 
-    fmt.Println("Listening messages")
-    for {
-        time.Sleep(10 * time.Second)
-    }
+    fmt.Println("RPC server is waiting for incoming requests...")
+    userService.ServeForever()
 }

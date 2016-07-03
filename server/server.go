@@ -76,7 +76,7 @@ func NewServer(conn *amqp.Connection, serviceName string) (*Server, error) {
 }
 
 func (s *Server) start() {
-    go func(){
+    go func() {
         for d := range s.requestChannel {
             msg := new(message.MessageBody)
             var err error
@@ -135,4 +135,9 @@ func (s *Server) Register(method string, handler methodHandler) {
 // Close the client and AMQP chanel.
 func (s *Server) Close() {
     s.channel.Close()
+}
+
+// ServeForever blocks the current context to serve remote requests forever.
+func (s *Server) ServeForever() {
+    select {}
 }
