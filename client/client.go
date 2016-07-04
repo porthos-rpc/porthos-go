@@ -20,6 +20,7 @@ type slot struct {
     TimeoutChannel chan bool
     MessageID uint32
     Index int
+    lock sync.Mutex
 }
 
 // Client is an entry point for making remote calls.
@@ -114,10 +115,10 @@ func (c *Client) start() {
             }
 
             func() {
-                c.slotsLock.Lock()
-                defer c.slotsLock.Unlock()
+                slot := c.getSlot(index)
 
-                slot := c.slots[index]
+                slot.lock.Lock()
+                defer slot.lock.Unlock()
 
                 if slot.MessageID == messageID {
                     var jsonResponse interface{}
@@ -152,7 +153,7 @@ func (c *Client) Call(method string, args ...interface{}) (chan interface{}, cha
 
 // CallWithTTL calls a remote procedure/service with the given tll, name and arguments.
 // It returns a interface{} channel where you can get you response data from.
-func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan interface{}, chan bool) {
+func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (chan interface{}, chan bool) {
     body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {
@@ -166,9 +167,6 @@ func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan
     var slot *slot
 
     func() {
-        c.slotsLock.Lock()
-        defer c.slotsLock.Unlock()
-
         slot, err = c.getFreeSlot()
 
         if err != nil {
@@ -200,8 +198,8 @@ func (c *Client) CallWithTTL(ttl int64, method string, args []interface{}) (chan
 
     // schedule a slot cleanup after TTL value.
     time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {
-        c.slotsLock.Lock()
-        defer c.slotsLock.Unlock()
+        slot.lock.Lock()
+        defer slot.lock.Unlock()
 
         // check if this slot is still bing used by the same request
         if slot.MessageID == messageID {
@@ -242,7 +240,17 @@ func (c *Client) Close() {
     c.channel.Close()
 }
 
+func (c *Client) getSlot(index int) *slot {
+    c.slotsLock.Lock()
+    defer c.slotsLock.Unlock()
+
+    return &c.slots[index]
+}
+
 func (c *Client) getFreeSlot() (*slot, error) {
+    c.slotsLock.Lock()
+    defer c.slotsLock.Unlock()
+
     for index, s := range c.slots {
         if !s.InUse {
             c.slots[index].InUse = true
@@ -251,6 +259,9 @@ func (c *Client) getFreeSlot() (*slot, error) {
             c.slots[index].TimeoutChannel = make(chan bool)
             c.slots[index].MessageID = c.lastMessageID + 1
             c.slots[index].Index = index
+
+            c.lastMessageID = c.slots[index].MessageID
+
             return &c.slots[index], nil
         }
     }
