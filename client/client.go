@@ -20,7 +20,7 @@ type slot struct {
     TimeoutChannel chan bool
     MessageID uint32
     Index int
-    lock sync.Mutex
+    lock *sync.Mutex
 }
 
 // Client is an entry point for making remote calls.
@@ -263,6 +263,7 @@ func (c *Client) getFreeSlot() (*slot, error) {
             c.slots[index].TimeoutChannel = make(chan bool)
             c.slots[index].MessageID = c.lastMessageID + 1
             c.slots[index].Index = index
+            c.slots[index].lock = &sync.Mutex{}
 
             c.lastMessageID = c.slots[index].MessageID
 
