@@ -148,12 +148,16 @@ func (c *Client) start() {
 // Call calls a remote procedure/service with the given name and arguments, using default TTL.
 // It returns a interface{} channel where you can get you response data from.
 func (c *Client) Call(method string, args ...interface{}) (chan interface{}, chan bool) {
-    return c.CallWithTTL(c.defaultTTL, method, args)
+    return c.doCallWithTTL(c.defaultTTL, method, args...)
 }
 
 // CallWithTTL calls a remote procedure/service with the given tll, name and arguments.
 // It returns a interface{} channel where you can get you response data from.
 func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (chan interface{}, chan bool) {
+    return c.doCallWithTTL(ttl, method, args...)
+}
+
+func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (chan interface{}, chan bool) {
     body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {

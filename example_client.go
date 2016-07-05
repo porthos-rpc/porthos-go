@@ -37,14 +37,14 @@ func main() {
 
     select {
     case res := <-response1:
-        fmt.Println("Response: ", res)
+        fmt.Println("Response1: ", res)
     case <-timeout1:
         fmt.Println("Timed out :(")
     }
 
     select {
     case res := <-response2:
-        fmt.Println("Response: ", res)
+        fmt.Println("Response2: ", res)
     case <-timeout2:
         fmt.Println("Timed out :(")
     }
