@@ -17,7 +17,8 @@ func main() {
 
     defer broker.Close()
 
-    userService, err := client.NewClient(broker, "UserService", 120)
+    // create a client with a default timeout of 1 second.
+    userService, err := client.NewClient(broker, "UserService", 1000)
 
     if err != nil {
         fmt.Printf("Error creating client")
@@ -26,26 +27,37 @@ func main() {
 
     defer userService.Close()
 
+    // call a remote method that is "void".
     userService.CallVoid("doSomething", 20)
     fmt.Println("Service userService.doSomething invoked")
 
-    response1, timeout1 := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
+    // call a lot of methods concurrently
+    for i := 0; i < 10000; i++ {
+        go func(idx int) {
+            response, timeout := userService.Call("doSomethingThatReturnsValue", idx)
+            fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
+
+            select {
+            case res := <-response:
+                data := res.(map[string]interface{})
+                fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
+            case <-timeout:
+                fmt.Printf("Timed out %d :(\n", idx)
+            }
+        }(i)
+	}
+
+    // call a method with a custom timeout.
+    response, timeout := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
     fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
-    response2, timeout2 := userService.Call("doSomethingThatReturnsString", "world")
-    fmt.Println("Service userService.doSomethingThatReturnsString invoked. Waiting for response")
-
     select {
-    case res := <-response1:
+    case res := <-response:
         fmt.Println("Response1: ", res)
-    case <-timeout1:
+    case <-timeout:
         fmt.Println("Timed out :(")
     }
 
-    select {
-    case res := <-response2:
-        fmt.Println("Response2: ", res)
-    case <-timeout2:
-        fmt.Println("Timed out :(")
-    }
+    // wait forever (to give time to execute all goroutines)
+    select{}
 }
