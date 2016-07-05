@@ -69,6 +69,10 @@ fmt.Println("RPC server is waiting for incoming requests...")
 userService.ServeForever()
 ```
 
+## Acknowledgements
+
+A special thanks to my coworker https://github.com/skrater.
+
 ## Contributing
 
 Pull requests are very much welcomed. Make sure a test or example is included that covers your change.
