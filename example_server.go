@@ -17,7 +17,7 @@ func main() {
 
     defer broker.Close()
 
-    userService, err := server.NewServer(broker, "UserService")
+    userService, err := server.NewServer(broker, "UserService", 4)
 
     if err != nil {
         fmt.Printf("Error creating server")
@@ -26,11 +26,11 @@ func main() {
 
     defer userService.Close()
 
-    userService.Register("doSomething", func(args []interface{}) interface{} {
+    userService.Register("doSomething", func(args server.MethodArgs) server.MethodResponse {
         return nil
     })
 
-    userService.Register("doSomethingThatReturnsValue", func(args []interface{}) interface{} {
+    userService.Register("doSomethingThatReturnsValue", func(args server.MethodArgs) server.MethodResponse {
         type test struct {
             Original    float64 `json:"original"`
             Sum         float64 `json:"sum"`
@@ -41,7 +41,7 @@ func main() {
         return test{x, x+1}
     })
 
-    userService.Register("doSomethingThatReturnsString", func(args []interface{}) interface{} {
+    userService.Register("doSomethingThatReturnsString", func(args server.MethodArgs) server.MethodResponse {
         return fmt.Sprintf("Hello %s", args[0].(string))
     })
 

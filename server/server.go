@@ -8,14 +8,18 @@ import (
     "github.com/gfronza/porthos/message"
 )
 
-type methodHandler func(args []interface{}) interface{}
+type MethodArgs []interface{}
+type MethodResponse interface{}
+
+type MethodHandler func(args MethodArgs) MethodResponse
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
-    serviceName    string
-    channel        *amqp.Channel
-    requestChannel <-chan amqp.Delivery
-    methods        map[string]methodHandler
+    jobQueue        chan Job
+    serviceName     string
+    channel         *amqp.Channel
+    requestChannel  <-chan amqp.Delivery
+    methods         map[string]MethodHandler
 }
 
 
@@ -25,7 +29,7 @@ func NewBroker(amqpURL string) (*amqp.Connection, error) {
 }
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(conn *amqp.Connection, serviceName string) (*Server, error) {
+func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Server, error) {
     ch, err := conn.Channel()
 
     if err != nil {
@@ -67,12 +71,19 @@ func NewServer(conn *amqp.Connection, serviceName string) (*Server, error) {
         serviceName:    serviceName,
         channel:        ch,
         requestChannel: dc,
-        methods:        make(map[string]methodHandler),
+        methods:        make(map[string]MethodHandler),
+        jobQueue:       make(chan Job, maxWorkers),
     }
 
+    s.startWorkers(maxWorkers)
     s.start()
 
     return s, nil
+}
+
+func (s *Server) startWorkers(maxWorkers int) {
+    dispatcher := NewDispatcher(s.jobQueue, maxWorkers)
+    dispatcher.Run()
 }
 
 func (s *Server) start() {
@@ -88,27 +99,39 @@ func (s *Server) start() {
                 continue
             }
 
-            if fun, ok := s.methods[msg.Method]; ok {
-                // Ack early
+            if method, ok := s.methods[msg.Method]; ok {
+                // ack early
                 d.Ack(false)
 
-                // An error in this function can stop the execution of the server.
-                funcReturn := fun(msg.Args)
+                responseChannel := make(chan MethodResponse)
 
-                if funcReturn == nil {
-                    fmt.Println("Execution whitout response.")
-                    continue
-                }
+                // create the job with arguments and a response channel to post the results.
+                work := Job{Method: method, Args: msg.Args, ResponseChannel: responseChannel}
 
-                response, err = json.Marshal(&funcReturn)
-                if err != nil{
-                    fmt.Println("Marshal response error: ", err.Error())
-                    continue
-                }
+                // queue the job.
+                s.jobQueue <- work
 
-                fmt.Println("Sending response: ", response)
+                // wait for the response asynchronously.
+                go func(d amqp.Delivery) {
+                    // wait the response
+                    res := <-responseChannel
 
-                err = s.channel.Publish(
+                    close(responseChannel)
+
+                    if res == nil {
+                        fmt.Println("Execution without response.")
+                        return
+                    }
+
+                    response, err = json.Marshal(&res)
+                    if err != nil{
+                        fmt.Println("Marshal response error: ", err.Error())
+                        return
+                    }
+
+                    fmt.Println("Sending response: ", response)
+
+                    err = s.channel.Publish(
                         "",
                         d.ReplyTo,
                         false,
@@ -118,6 +141,12 @@ func (s *Server) start() {
                                 CorrelationId: d.CorrelationId,
                                 Body:          response,
                     })
+
+                    if err != nil {
+                        fmt.Println("Publish Error: ", err.Error())
+                        return
+                    }
+                }(d)
             } else {
                 // TODO: Return timeout?
                 fmt.Println("Cannot find method:", msg.Method)
@@ -128,7 +157,7 @@ func (s *Server) start() {
 }
 
 // Register a method and its handler.
-func (s *Server) Register(method string, handler methodHandler) {
+func (s *Server) Register(method string, handler MethodHandler) {
     s.methods[method] = handler
 }
 
