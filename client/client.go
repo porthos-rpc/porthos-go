@@ -72,8 +72,6 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
         return nil, err
     }
 
-    //slots := make([]slot, 20000)
-
     c := &Client{
         serviceName,
         defaultTTL,
