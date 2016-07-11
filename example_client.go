@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "os"
+    "time"
 
     "github.com/gfronza/porthos/client"
 )
@@ -18,7 +19,7 @@ func main() {
     defer broker.Close()
 
     // create a client with a default timeout of 1 second.
-    userService, err := client.NewClient(broker, "UserService", 1000)
+    userService, err := client.NewClient(broker, "UserService", 100)
 
     if err != nil {
         fmt.Printf("Error creating client")
@@ -34,30 +35,32 @@ func main() {
     // call a lot of methods concurrently
     for i := 0; i < 10000; i++ {
         go func(idx int) {
-            response, timeout := userService.Call("doSomethingThatReturnsValue", idx)
+            slot := userService.Call("doSomethingThatReturnsValue", idx)
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
 
             select {
-            case res := <-response:
+            case res := <-slot.ResponseChannel:
                 data := res.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-timeout:
+            case <-time.After(1000 * time.Millisecond):
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
 	}
-
+    /*
+    go func(){
     // call a method with a custom timeout.
-    response, timeout := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
-    fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
+        slot := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
+        fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
-    select {
-    case res := <-response:
-        fmt.Println("Response1: ", res)
-    case <-timeout:
-        fmt.Println("Timed out :(")
-    }
-
+        select {
+        case res := <-slot.ResponseChannel:
+            fmt.Println("Response1: ", res)
+        case <-slot.TimeoutChannel:
+            fmt.Println("Timed out :(")
+        }
+    }()
+    */
     // wait forever (to give time to execute all goroutines)
     select{}
 }
