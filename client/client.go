@@ -88,10 +88,10 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
 func (c *Client) start() {
     go func() {
         for d := range c.deliveryChannel {
-            index := unmarshallCorrelationID(d.CorrelationId)
+            address := unmarshallCorrelationID(d.CorrelationId)
 
             func() {
-                slot := c.getSlot(index)
+                slot := c.getSlot(address)
 
                 var jsonResponse interface{}
                 var err error
@@ -201,14 +201,13 @@ func (c *Client) CallVoid(method string, args ...interface{}) {
     }
 }
 
-
 // Close the client and AMQP chanel.
 func (c *Client) Close() {
     c.channel.Close()
 }
 
-func (c *Client) getSlot(index uintptr) *slot {
-    return (*slot)(unsafe.Pointer(uintptr(index)))
+func (c *Client) getSlot(address uintptr) *slot {
+    return (*slot)(unsafe.Pointer(uintptr(address)))
 }
 
 func (c *Client) getFreeSlot()(*slot, error){
