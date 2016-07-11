@@ -129,7 +129,7 @@ func (s *Server) start() {
                         return
                     }
 
-                    fmt.Println("Sending response: ", response)
+                    fmt.Printf("Sending response to %s: %s\n", d.CorrelationId, response)
 
                     err = s.channel.Publish(
                         "",

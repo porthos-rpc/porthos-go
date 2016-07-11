@@ -3,11 +3,9 @@ package client
 import (
     "fmt"
     "time"
-    "sync"
-    "errors"
-    "strings"
     "strconv"
     "encoding/json"
+    "unsafe"
 
     "github.com/streadway/amqp"
     "github.com/gfronza/porthos/message"
@@ -18,9 +16,6 @@ type slot struct {
     RequestTime time.Time
     ResponseChannel chan interface{}
     TimeoutChannel chan bool
-    MessageID uint32
-    Index int
-    lock *sync.Mutex
 }
 
 // Client is an entry point for making remote calls.
@@ -30,20 +25,13 @@ type Client struct {
     channel *amqp.Channel
     deliveryChannel <-chan amqp.Delivery
     responseQueue *amqp.Queue
-
-    lastMessageID uint32
-    slots []slot // client concurrency
-    slotsLock *sync.Mutex
 }
 
 func (s *slot) getCorrelationID() string {
-    return fmt.Sprintf("%d.%d", s.Index, s.MessageID)
+    return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(s))))
 }
 
 func (s *slot) free() {
-    s.InUse = false
-    s.MessageID = 0
-    s.Index = -1
     close(s.ResponseChannel)
 }
 
@@ -84,7 +72,7 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
         return nil, err
     }
 
-    slots := make([]slot, 20000)
+    //slots := make([]slot, 20000)
 
     c := &Client{
         serviceName,
@@ -92,9 +80,6 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
         ch,
         dc,
         &q,
-        0,
-        slots,
-        &sync.Mutex{},
     }
 
     c.start()
@@ -105,41 +90,29 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
 func (c *Client) start() {
     go func() {
         for d := range c.deliveryChannel {
-            index, messageID, err := unmarshallCorrelationID(d.CorrelationId)
-
-            if err != nil {
-                fmt.Println(err)
-
-                // fail silently.
-                continue
-            }
+            index := unmarshallCorrelationID(d.CorrelationId)
 
             func() {
                 slot := c.getSlot(index)
 
-                slot.lock.Lock()
-                defer slot.lock.Unlock()
+                var jsonResponse interface{}
+                var err error
 
-                if slot.MessageID == messageID {
-                    var jsonResponse interface{}
-                    var err error
-
-                    if d.ContentType == "application/json" {
-                        err = json.Unmarshal(d.Body, &jsonResponse)
-                        if err != nil {
-                            fmt.Println("Unmarshal error: ", err.Error())
-                        }
-
+                if d.ContentType == "application/json" {
+                    err = json.Unmarshal(d.Body, &jsonResponse)
+                    if err != nil {
+                        fmt.Println("Unmarshal error: ", err.Error())
                     }
 
-                    if jsonResponse != nil {
-                        slot.ResponseChannel <- jsonResponse
-                    } else {
-                        slot.ResponseChannel <- d.Body
-                    }
-
-                    slot.free()
                 }
+                fmt.Printf("Received response %s.\n", d.CorrelationId)
+                if jsonResponse != nil {
+                    slot.ResponseChannel <- jsonResponse
+                } else {
+                    slot.ResponseChannel <- d.Body
+                }
+
+                slot.free()
             }()
         }
     }()
@@ -164,7 +137,6 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (c
         panic(err)
     }
 
-    var messageID uint32
     var correlationID string
     var responseChannel chan interface{}
     var timeoutChannel chan bool
@@ -177,7 +149,6 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (c
             panic(err)
         }
 
-        messageID = slot.MessageID
         responseChannel = slot.ResponseChannel
         timeoutChannel = slot.TimeoutChannel
         correlationID = slot.getCorrelationID()
@@ -202,14 +173,8 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (c
 
     // schedule a slot cleanup after TTL value.
     time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {
-        slot.lock.Lock()
-        defer slot.lock.Unlock()
-
-        // check if this slot is still bing used by the same request
-        if slot.MessageID == messageID {
-            slot.TimeoutChannel <- true
-            slot.free()
-        }
+        slot.TimeoutChannel <- true
+        slot.free()
     })
 
     return responseChannel, timeoutChannel
@@ -244,54 +209,18 @@ func (c *Client) Close() {
     c.channel.Close()
 }
 
-func (c *Client) getSlot(index int) *slot {
-    c.slotsLock.Lock()
-    defer c.slotsLock.Unlock()
-
-    return &c.slots[index]
+func (c *Client) getSlot(index uintptr) *slot {
+    return (*slot)(unsafe.Pointer(uintptr(index)))
 }
 
-func (c *Client) getFreeSlot() (*slot, error) {
-    c.slotsLock.Lock()
-    defer c.slotsLock.Unlock()
-
-    for index, s := range c.slots {
-        if !s.InUse {
-            c.slots[index].InUse = true
-            c.slots[index].RequestTime = time.Now()
-            c.slots[index].ResponseChannel = make(chan interface{})
-            c.slots[index].TimeoutChannel = make(chan bool)
-            c.slots[index].MessageID = c.lastMessageID + 1
-            c.slots[index].Index = index
-            c.slots[index].lock = &sync.Mutex{}
-
-            c.lastMessageID = c.slots[index].MessageID
-
-            return &c.slots[index], nil
-        }
-    }
-
-    return nil, errors.New("There's not free slot to get")
+func (c *Client) getFreeSlot()(*slot, error){
+    return &slot{
+            true,
+            time.Now(),
+            make(chan interface{}),
+            make(chan bool)}, nil
 }
 
-func unmarshallCorrelationID(correlationID string) (int, uint32, error) {
-    s := strings.Split(correlationID, ".")
-
-    if len(s) != 2 {
-        return 0, 0, errors.New(fmt.Sprintf("Could not unmarshall correlationID [%s]", correlationID))
-    }
-
-    index, err := strconv.Atoi(s[0])
-
-    if err != nil {
-        return 0, 0, err
-    }
-
-    messageID, err := strconv.ParseUint(s[1], 10, 32)
-
-    if err != nil {
-        return 0, 0, err
-    }
-
-    return index, uint32(messageID), nil
+func unmarshallCorrelationID(correlationID string) (uintptr) {
+    return message.BytesToUintptr([]byte(correlationID))
 }
