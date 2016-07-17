@@ -48,7 +48,7 @@ func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Serv
         serviceName, // name
         true,        // durable
         false,       // delete when usused
-        true,        // exclusive
+        false,       // exclusive
         false,       // noWait
         nil,         // arguments
     )
@@ -126,69 +126,73 @@ func (s *Server) startWorkers(maxWorkers int) {
 func (s *Server) start() {
     go func() {
         for d := range s.requestChannel {
-            msg := new(message.MessageBody)
-
-            err := json.Unmarshal(d.Body, msg)
-
-            if err != nil {
-                fmt.Println("Unmarshal error: ", err.Error())
-                continue
-            }
-
-            if method, ok := s.methods[msg.Method]; ok {
-                // ack early
-                d.Ack(false)
-
-                responseChannel := make(chan *Response)
-
-                req := Request{msg.Args}
-
-                // create the job with arguments and a response channel to post the results.
-                work := Job{Method: method, Request: req, ResponseChannel: responseChannel}
-
-                // queue the job.
-                s.jobQueue <- work
-
-                // wait for the response asynchronously.
-                go func(d amqp.Delivery) {
-                    // wait the response
-                    res := <-responseChannel
-
-                    close(responseChannel)
-
-                    resContent := res.GetContent()
-                    resContentType := res.GetContentType()
-
-                    if err != nil {
-                        fmt.Println("Error encoding response content: ", err.Error())
-                        return
-                    }
-
-                    fmt.Println("Sending response: ", resContent)
-
-                    err = s.channel.Publish(
-                        "",
-                        d.ReplyTo,
-                        false,
-                        false,
-                        amqp.Publishing{
-                                ContentType:   resContentType,
-                                CorrelationId: d.CorrelationId,
-                                Body:          resContent,
-                    })
-
-                    if err != nil {
-                        fmt.Println("Publish Error: ", err.Error())
-                        return
-                    }
-                }(d)
-            } else {
-                // TODO: Return timeout?
-                fmt.Println("Cannot find method:", msg.Method)
-                d.Reject(false)
-            }
+            s.processRequest(d)
         }
     }()
+}
+
+func (s *Server) processRequest(d amqp.Delivery) {
+    msg := new(message.MessageBody)
+
+    err := json.Unmarshal(d.Body, msg)
+
+    if err != nil {
+        fmt.Println("Unmarshal error: ", err.Error())
+        return
+    }
+
+    if method, ok := s.methods[msg.Method]; ok {
+        // ack early
+        d.Ack(false)
+
+        responseChannel := make(chan *Response)
+
+        req := Request{msg.Args}
+
+        // create the job with arguments and a response channel to post the results.
+        work := Job{Method: method, Request: req, ResponseChannel: responseChannel}
+
+        // queue the job.
+        s.jobQueue <- work
+
+        // wait for the response asynchronously.
+        go func(d amqp.Delivery) {
+            // wait the response
+            res := <-responseChannel
+
+            close(responseChannel)
+
+            resContent := res.GetContent()
+            resContentType := res.GetContentType()
+
+            if err != nil {
+                fmt.Println("Error encoding response content: ", err.Error())
+                return
+            }
+
+            fmt.Println("Sending response: ", resContent)
+
+            err = s.channel.Publish(
+                "",
+                d.ReplyTo,
+                false,
+                false,
+                amqp.Publishing{
+                        ContentType:   resContentType,
+                        CorrelationId: d.CorrelationId,
+                        Body:          resContent,
+            })
+
+            if err != nil {
+                fmt.Println("Publish Error: ", err.Error())
+                return
+            }
+        }(d)
+    } else {
+        // TODO: Return timeout?
+        fmt.Println("Cannot find method:", msg.Method)
+        d.Reject(false)
+    }
 }
 
 // Register a method and its handler.
