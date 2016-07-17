@@ -38,11 +38,7 @@ func main() {
 
         x := req.GetArg(0).AsFloat64()
 
-        res.SetContent(test{x, x+1})
-    })
-
-    userService.Register("doSomethingThatReturnsString", func(req rpc.Request, res *rpc.Response) {
-        fmt.Sprintf("Hello %s", req.GetArg(0).AsString())
+        res.JSON(test{x, x+1})
     })
 
     fmt.Println("RPC server is waiting for incoming requests...")

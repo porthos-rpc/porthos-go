@@ -2,7 +2,6 @@ package server
 
 import (
     "fmt"
-    "errors"
     "encoding/json"
 
     "github.com/streadway/amqp"
@@ -14,7 +13,8 @@ type Request struct {
 }
 
 type Response struct {
-    content interface{}
+    content     []byte
+    contentType string
 }
 
 type MethodHandler func(req Request, res *Response)
@@ -93,23 +93,29 @@ func (r *Request) GetArg(index int) *Argument {
 }
 
 // SetContent sets the content of the method's response.
-func (r *Response) SetContent(c interface{}) {
-    r.content = c
+func (r *Response) JSON(c interface{}) {
+    if c == nil {
+        panic("Response content is empty")
+    }
+
+    jsonContent, err := json.Marshal(&c)
+
+    if err != nil {
+        panic(err)
+    }
+
+    r.content = jsonContent
+    r.contentType = "application/json"
 }
 
 // GetEncodedContent returns the method's response encoded in JSON format.
-func (r *Response) GetEncodedContent() ([]byte, error) {
-    if r.content == nil {
-        return nil, errors.New("Response is empty")
-    }
+func (r *Response) GetContent() []byte {
+    return r.content
+}
 
-    response, err := json.Marshal(&r.content)
-
-    if err != nil {
-        return nil, err
-    }
-
-    return response, nil
+// GetEncodedContent returns the method's response encoded in JSON format.
+func (r *Response) GetContentType() string {
+    return r.contentType
 }
 
 func (s *Server) startWorkers(maxWorkers int) {
@@ -150,14 +156,15 @@ func (s *Server) start() {
 
                     close(responseChannel)
 
-                    encodedResponse, err := res.GetEncodedContent()
+                    resContent := res.GetContent()
+                    resContentType := res.GetContentType()
 
                     if err != nil {
                         fmt.Println("Error encoding response content: ", err.Error())
                         return
                     }
 
-                    fmt.Println("Sending response: ", encodedResponse)
+                    fmt.Println("Sending response: ", resContent)
 
                     err = s.channel.Publish(
                         "",
@@ -165,9 +172,9 @@ func (s *Server) start() {
                         false,
                         false,
                         amqp.Publishing{
-                                ContentType:   "application/json",
+                                ContentType:   resContentType,
                                 CorrelationId: d.CorrelationId,
-                                Body:          encodedResponse,
+                                Body:          resContent,
                     })
 
                     if err != nil {

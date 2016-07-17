@@ -58,7 +58,7 @@ userService.Register("doSomethingThatReturnsValue", func(req rpc.Request, res *r
 
     x := req.GetArg(0).AsFloat64()
 
-    res.SetContent(test{x, x+1})
+    res.JSON(test{x, x+1})
 })
 
 userService.Register("doSomethingThatReturnsString", func(req rpc.Request, res *rpc.Response) {
