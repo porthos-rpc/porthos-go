@@ -13,8 +13,8 @@ import (
 
 type Slot struct {
     requestTime time.Time
-    ResponseChannel chan interface{}
-    TimeoutChannel chan bool
+    responseChannel chan interface{}
+    timeoutChannel chan bool
 }
 
 // Client is an entry point for making remote calls.
@@ -31,11 +31,19 @@ func (s *Slot) getCorrelationID() string {
 }
 
 func (s *Slot) free() {
-    close(s.ResponseChannel)
+    close(s.responseChannel)
 }
 
 func (s *Slot) GetRequestTime() time.Time {
     return s.requestTime
+}
+
+func (s *Slot) GetResponseChannel() <-chan interface{} {
+    return s.responseChannel
+}
+
+func (s *Slot) GetTimeoutChannel() <- chan bool {
+    return s.timeoutChannel
 }
 
 // NewBroker creates a new instance of AMQP connection.
@@ -108,9 +116,9 @@ func (c *Client) start() {
                 }
                 fmt.Printf("Received response %s.\n", d.CorrelationId)
                 if jsonResponse != nil {
-                    slot.ResponseChannel <- jsonResponse
+                    slot.responseChannel <- jsonResponse
                 } else {
-                    slot.ResponseChannel <- d.Body
+                    slot.responseChannel <- d.Body
                 }
                 slot.free()
             }()
@@ -157,7 +165,9 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*
     }
 
     // schedule a slot cleanup after TTL value.
-    time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {      slot.TimeoutChannel <- true   })
+    time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {
+            slot.timeoutChannel <- true
+    })
 
     return slot
 }

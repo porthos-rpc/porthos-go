@@ -38,10 +38,10 @@ func main() {
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
 
             select {
-            case res := <-slot.ResponseChannel:
+            case res := <-slot.GetResponseChannel():
                 data := res.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-slot.TimeoutChannel:
+            case <-slot.GetTimeoutChannel():
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
@@ -53,9 +53,9 @@ func main() {
         fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
         select {
-        case res := <-slot.ResponseChannel:
+        case res := <-slot.GetResponseChannel():
             fmt.Println("Response1: ", res)
-        case <-slot.TimeoutChannel:
+        case <-slot.GetTimeoutChannel():
             fmt.Println("Timed out :(")
         }
     }()
