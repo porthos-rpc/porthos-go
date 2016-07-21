@@ -16,7 +16,7 @@ The client is very simple. `NewClient` takes a broker, a `service name` and a ti
 
 Each `Call` returns two channels: one for the actual response and other for signaling a timeout. The response depends on the ContentType returned by the remote procedure. In case of an `application/json` response, a map will be returned, otherwise you will get a string.
 
-Each client instance has its own `response queue`. To match requests and responses there's a slot array. Each `Call` uses a free slot (`O(n)`) and when the response comes, we get the slot by index (`O(1)`), since the correlationId contains the index. So the request and response operation is `O(n)`+ `O(1)`.
+Each client instance has its own `response queue`.
 
 ```go
 // first of all you need a broker
@@ -28,13 +28,13 @@ userService, _ := client.NewClient(broker, "UserService", 120)
 defer userService.Close()
 
 // finally the remote call. It returns two channels.
-response, timeout := userService.Call("doSomethingThatReturnsValue", 20)
+resp := userService.Call("doSomethingThatReturnsValue", 20)
 
 // handle the actual response and timeout.
 select {
-case res := <- response:
+case res := <-resp.GetResponseChannel():
     fmt.Printf("Response: %#v\n", res)
-case <- timeout:
+case <-resp.GetTimeoutChannel():
     fmt.Println("Timed out :(")
 }
 ```

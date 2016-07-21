@@ -34,14 +34,14 @@ func main() {
     // call a lot of methods concurrently
     for i := 0; i < 1000; i++ {
         go func(idx int) {
-            slot := userService.Call("doSomethingThatReturnsValue", idx)
+            resp := userService.Call("doSomethingThatReturnsValue", idx)
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
 
             select {
-            case res := <-slot.GetResponseChannel():
-                data := res.(map[string]interface{})
+            case resContent := <-resp.GetResponseChannel():
+                data := resContent.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-slot.GetTimeoutChannel():
+            case <-resp.GetTimeoutChannel():
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
@@ -49,13 +49,13 @@ func main() {
 
     go func(){
         // call a method with a custom timeout.
-        slot := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
+        resp := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
         fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
         select {
-        case res := <-slot.GetResponseChannel():
-            fmt.Println("Response1: ", res)
-        case <-slot.GetTimeoutChannel():
+        case resContent := <-resp.GetResponseChannel():
+            fmt.Println("Response1: ", resContent)
+        case <-resp.GetTimeoutChannel():
             fmt.Println("Timed out :(")
         }
     }()

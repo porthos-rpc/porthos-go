@@ -11,8 +11,7 @@ import (
     "github.com/gfronza/porthos/message"
 )
 
-type Slot struct {
-    requestTime time.Time
+type ResponseSlot struct {
     responseChannel chan interface{}
     timeoutChannel chan bool
 }
@@ -26,23 +25,19 @@ type Client struct {
     responseQueue *amqp.Queue
 }
 
-func (s *Slot) getCorrelationID() string {
+func (s *ResponseSlot) getCorrelationID() string {
     return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(s))))
 }
 
-func (s *Slot) free() {
+func (s *ResponseSlot) free() {
     close(s.responseChannel)
 }
 
-func (s *Slot) GetRequestTime() time.Time {
-    return s.requestTime
-}
-
-func (s *Slot) GetResponseChannel() <-chan interface{} {
+func (s *ResponseSlot) GetResponseChannel() <-chan interface{} {
     return s.responseChannel
 }
 
-func (s *Slot) GetTimeoutChannel() <-chan bool {
+func (s *ResponseSlot) GetTimeoutChannel() <-chan bool {
     return s.timeoutChannel
 }
 
@@ -102,7 +97,7 @@ func (c *Client) start() {
             address := unmarshallCorrelationID(d.CorrelationId)
 
             func() {
-                slot := c.getSlot(address)
+                slot := c.getResponseSlot(address)
 
                 var jsonResponse interface{}
                 var err error
@@ -127,25 +122,23 @@ func (c *Client) start() {
 }
 
 // Call calls a remote procedure/service with the given name and arguments, using default TTL.
-// It returns a interface{} channel where you can get you response data from.
-func (c *Client) Call(method string, args ...interface{}) (*Slot) {
+func (c *Client) Call(method string, args ...interface{}) (*ResponseSlot) {
     return c.doCallWithTTL(c.defaultTTL, method, args...)
 }
 
 // CallWithTTL calls a remote procedure/service with the given tll, name and arguments.
-// It returns a interface{} channel where you can get you response data from.
-func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (*Slot) {
+func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (*ResponseSlot) {
     return c.doCallWithTTL(ttl, method, args...)
 }
 
-func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*Slot) {
+func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*ResponseSlot) {
     body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {
         panic(err)
     }
 
-    slot := c.getNewSlot()
+    slot := c.getNewResponseSlot()
 
     err = c.channel.Publish(
         "",             // exchange
@@ -200,13 +193,12 @@ func (c *Client) Close() {
     c.channel.Close()
 }
 
-func (c *Client) getSlot(address uintptr) *Slot {
-    return (*Slot)(unsafe.Pointer(uintptr(address)))
+func (c *Client) getResponseSlot(address uintptr) *ResponseSlot {
+    return (*ResponseSlot)(unsafe.Pointer(uintptr(address)))
 }
 
-func (c *Client) getNewSlot()(*Slot){
-    return &Slot{
-            time.Now(),
+func (c *Client) getNewResponseSlot()(*ResponseSlot){
+    return &ResponseSlot{
             make(chan interface{}),
             make(chan bool, 1),
         }
@@ -215,4 +207,3 @@ func (c *Client) getNewSlot()(*Slot){
 func unmarshallCorrelationID(correlationID string) (uintptr) {
     return message.BytesToUintptr([]byte(correlationID))
 }
-
