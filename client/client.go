@@ -14,7 +14,7 @@ import (
 type Slot struct {
     requestTime time.Time
     ResponseChannel chan interface{}
-//    TimeoutChannel chan bool
+    TimeoutChannel chan bool
 }
 
 // Client is an entry point for making remote calls.
@@ -32,8 +32,6 @@ func (s *Slot) getCorrelationID() string {
 
 func (s *Slot) free() {
     close(s.ResponseChannel)
-    //s.ResponseChannel = nil
-    //fmt.Println("################################################ close ############################################ ", s.ResponseChannel)
 }
 
 func (s *Slot) GetRequestTime() time.Time {
@@ -114,8 +112,7 @@ func (c *Client) start() {
                 } else {
                     slot.ResponseChannel <- d.Body
                 }
-                //slot.free()
-                
+                slot.free()
             }()
         }
     }()
@@ -160,7 +157,7 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*
     }
 
     // schedule a slot cleanup after TTL value.
-    //time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {      slot.TimeoutChannel <- true   })
+    time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {      slot.TimeoutChannel <- true   })
 
     return slot
 }
@@ -201,10 +198,11 @@ func (c *Client) getFreeSlot()(*Slot){
     return &Slot{
             time.Now(),
             make(chan interface{}),
-            //(chan bool, 1),
+            make(chan bool, 1),
         }
 }
 
 func unmarshallCorrelationID(correlationID string) (uintptr) {
     return message.BytesToUintptr([]byte(correlationID))
 }
+

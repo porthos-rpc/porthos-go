@@ -17,7 +17,7 @@ func main() {
 
     defer broker.Close()
 
-    userService, err := server.NewServer(broker, "UserService", 150)
+    userService, err := server.NewServer(broker, "UserService", 3000)
 
     if err != nil {
         fmt.Printf("Error creating server")

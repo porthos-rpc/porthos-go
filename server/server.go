@@ -42,7 +42,7 @@ func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Serv
         serviceName, // name
         true,        // durable
         false,       // delete when usused
-        true,        // exclusive
+        false,        // exclusive
         false,       // noWait
         nil,         // arguments
     )

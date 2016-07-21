@@ -3,7 +3,6 @@ package main
 import (
     "fmt"
     "os"
-    "time"
 
     "github.com/gfronza/porthos/client"
 )
@@ -19,7 +18,7 @@ func main() {
     defer broker.Close()
 
     // create a client with a default timeout of 1 second.
-    userService, err := client.NewClient(broker, "UserService", 100)
+    userService, err := client.NewClient(broker, "UserService", 1000)
 
     if err != nil {
         fmt.Printf("Error creating client")
@@ -33,7 +32,7 @@ func main() {
     fmt.Println("Service userService.doSomething invoked")
 
     // call a lot of methods concurrently
-    for i := 0; i < 10000; i++ {
+    for i := 0; i < 100000; i++ {
         go func(idx int) {
             slot := userService.Call("doSomethingThatReturnsValue", idx)
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
@@ -42,14 +41,14 @@ func main() {
             case res := <-slot.ResponseChannel:
                 data := res.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-time.After(1000 * time.Millisecond):
+            case <-slot.TimeoutChannel:
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
 	}
-    /*
+
     go func(){
-    // call a method with a custom timeout.
+        // call a method with a custom timeout.
         slot := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
         fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
@@ -60,7 +59,6 @@ func main() {
             fmt.Println("Timed out :(")
         }
     }()
-    */
     // wait forever (to give time to execute all goroutines)
     select{}
 }

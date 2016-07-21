@@ -4,8 +4,6 @@ server:
   command: dockerize -wait tcp://broker:5672 -timeout 60s go run example_server.go
   links:
    - broker
-  ports:
-   - "3000:3000"
   environment:
     AMQP_URL: amqp://guest:guest@broker:5672/
   volumes:
