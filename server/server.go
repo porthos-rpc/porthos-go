@@ -8,10 +8,16 @@ import (
     "github.com/gfronza/porthos/message"
 )
 
-type MethodArgs []interface{}
-type MethodResponse interface{}
+type Request struct {
+    args []interface{}
+}
 
-type MethodHandler func(args MethodArgs) MethodResponse
+type Response struct {
+    content     []byte
+    contentType string
+}
+
+type MethodHandler func(req Request, res *Response)
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
@@ -42,7 +48,7 @@ func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Serv
         serviceName, // name
         true,        // durable
         false,       // delete when usused
-        false,        // exclusive
+        false,       // exclusive
         false,       // noWait
         nil,         // arguments
     )
@@ -81,6 +87,37 @@ func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Serv
     return s, nil
 }
 
+// GetArg returns an argument giving the index.
+func (r *Request) GetArg(index int) *Argument {
+    return &Argument{r.args[index]}
+}
+
+// SetContent sets the content of the method's response.
+func (r *Response) JSON(c interface{}) {
+    if c == nil {
+        panic("Response content is empty")
+    }
+
+    jsonContent, err := json.Marshal(&c)
+
+    if err != nil {
+        panic(err)
+    }
+
+    r.content = jsonContent
+    r.contentType = "application/json"
+}
+
+// GetEncodedContent returns the method's response encoded in JSON format.
+func (r *Response) GetContent() []byte {
+    return r.content
+}
+
+// GetEncodedContent returns the method's response encoded in JSON format.
+func (r *Response) GetContentType() string {
+    return r.contentType
+}
+
 func (s *Server) startWorkers(maxWorkers int) {
     dispatcher := NewDispatcher(s.jobQueue, maxWorkers)
     dispatcher.Run()
@@ -89,71 +126,73 @@ func (s *Server) startWorkers(maxWorkers int) {
 func (s *Server) start() {
     go func() {
         for d := range s.requestChannel {
-            msg := new(message.MessageBody)
-            var err error
-            var response []byte
-            err = json.Unmarshal(d.Body, msg)
-
-            if err != nil {
-                fmt.Println("Unmarshal error: ", err.Error())
-                continue
-            }
-
-            if method, ok := s.methods[msg.Method]; ok {
-                // ack early
-                d.Ack(false)
-
-                responseChannel := make(chan MethodResponse)
-
-                // create the job with arguments and a response channel to post the results.
-                work := Job{Method: method, Args: msg.Args, ResponseChannel: responseChannel}
-
-                // queue the job.
-                s.jobQueue <- work
-
-                // wait for the response asynchronously.
-                go func(d amqp.Delivery) {
-                    // wait the response
-                    res := <-responseChannel
-
-                    close(responseChannel)
-
-                    if res == nil {
-                        fmt.Println("Execution without response.")
-                        return
-                    }
-
-                    response, err = json.Marshal(&res)
-                    if err != nil{
-                        fmt.Println("Marshal response error: ", err.Error())
-                        return
-                    }
-
-                    fmt.Printf("Sending response to %s: %s\n", d.CorrelationId, response)
-
-                    err = s.channel.Publish(
-                        "",
-                        d.ReplyTo,
-                        false,
-                        false,
-                        amqp.Publishing{
-                                ContentType:   "application/json",
-                                CorrelationId: d.CorrelationId,
-                                Body:          response,
-                    })
-
-                    if err != nil {
-                        fmt.Println("Publish Error: ", err.Error())
-                        return
-                    }
-                }(d)
-            } else {
-                // TODO: Return timeout?
-                fmt.Println("Cannot find method:", msg.Method)
-                d.Reject(false)
-            }
+            s.processRequest(d)
         }
     }()
+}
+
+func (s *Server) processRequest(d amqp.Delivery) {
+    msg := new(message.MessageBody)
+
+    err := json.Unmarshal(d.Body, msg)
+
+    if err != nil {
+        fmt.Println("Unmarshal error: ", err.Error())
+        return
+    }
+
+    if method, ok := s.methods[msg.Method]; ok {
+        // ack early
+        d.Ack(false)
+
+        responseChannel := make(chan *Response)
+
+        req := Request{msg.Args}
+
+        // create the job with arguments and a response channel to post the results.
+        work := Job{Method: method, Request: req, ResponseChannel: responseChannel}
+
+        // queue the job.
+        s.jobQueue <- work
+
+        // wait for the response asynchronously.
+        go func(d amqp.Delivery) {
+            // wait the response
+            res := <-responseChannel
+
+            close(responseChannel)
+
+            resContent := res.GetContent()
+            resContentType := res.GetContentType()
+
+            if err != nil {
+                fmt.Println("Error encoding response content: ", err.Error())
+                return
+            }
+
+            fmt.Println("Sending response: ", resContent)
+
+            err = s.channel.Publish(
+                "",
+                d.ReplyTo,
+                false,
+                false,
+                amqp.Publishing{
+                        ContentType:   resContentType,
+                        CorrelationId: d.CorrelationId,
+                        Body:          resContent,
+            })
+
+            if err != nil {
+                fmt.Println("Publish Error: ", err.Error())
+                return
+            }
+        }(d)
+    } else {
+        // TODO: Return timeout?
+        fmt.Println("Cannot find method:", msg.Method)
+        d.Reject(false)
+    }
 }
 
 // Register a method and its handler.

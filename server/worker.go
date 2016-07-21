@@ -4,8 +4,8 @@ package server
 // Job represents the job to be run
 type Job struct {
     Method MethodHandler
-    Args MethodArgs
-    ResponseChannel chan MethodResponse
+    Request Request
+    ResponseChannel chan *Response
 }
 
 // Worker represents the worker that executes the job
@@ -31,9 +31,10 @@ func (w Worker) Start() {
 
             select {
             case job := <-w.JobChannel:
-                ret := job.Method(job.Args)
+                res := &Response{}
+                job.Method(job.Request, res)
 
-                job.ResponseChannel <- ret
+                job.ResponseChannel <- res
 
             case <-w.quit:
                 return

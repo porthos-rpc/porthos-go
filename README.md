@@ -4,7 +4,7 @@ A RPC library for the Go programming language that operates over AMQP.
 
 ## Status
 
-Beta. Server API may change a bit.
+Beta. Server and Client API may change a bit.
 
 ## Goal
 
@@ -44,25 +44,25 @@ case <- timeout:
 The server also takes a broker and a `service name`. After that, you `Register` all your handlers and finally `ServeForever`.
 
 ```go
-broker, _ := server.NewBroker(os.Getenv("AMQP_URL"))
+broker, _ := rpc.NewBroker(os.Getenv("AMQP_URL"))
 defer broker.Close()
 
-userService, _ := server.NewServer(broker, "UserService")
+userService, _ := rpc.NewServer(broker, "UserService")
 defer userService.Close()
 
-userService.Register("doSomethingThatReturnsValue", func(args []interface{}) interface{} {
+userService.Register("doSomethingThatReturnsValue", func(req rpc.Request, res *rpc.Response) {
     type test struct {
         Original    float64 `json:"original"`
         Sum         float64 `json:"sum"`
     }
 
-    x := args[0].(float64)
+    x := req.GetArg(0).AsFloat64()
 
-    return test{x, x+1}
+    res.JSON(test{x, x+1})
 })
 
-userService.Register("doSomethingThatReturnsString", func(args []interface{}) interface{} {
-    return fmt.Sprintf("Hello %s", args[0].(string))
+userService.Register("doSomethingThatReturnsString", func(req rpc.Request, res *rpc.Response) {
+    fmt.Sprintf("Hello %s", req.GetArg(0).AsString())
 })
 
 fmt.Println("RPC server is waiting for incoming requests...")
