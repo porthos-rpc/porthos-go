@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "os"
+    "time"
 
     "github.com/gfronza/porthos/client"
 )
@@ -18,7 +19,7 @@ func main() {
     defer broker.Close()
 
     // create a client with a default timeout of 1 second.
-    userService, err := client.NewClient(broker, "UserService", 1000)
+    userService, err := client.NewClient(broker, "UserService", 10000)
 
     if err != nil {
         fmt.Printf("Error creating client")
@@ -34,28 +35,33 @@ func main() {
     // call a lot of methods concurrently
     for i := 0; i < 1000; i++ {
         go func(idx int) {
-            slot := userService.Call("doSomethingThatReturnsValue", idx)
+            resCall := userService.Call("doSomethingThatReturnsValue", idx)
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
 
             select {
-            case res := <-slot.GetResponseChannel():
+            case res := <-resCall.Out():
                 data := res.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-slot.GetTimeoutChannel():
+            case <-time.After(20 * time.Second):
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
+        if (i == 820){
+            time.Sleep(10000 * time.Millisecond)
+        } else {
+            //time.Sleep(30 * time.Millisecond)
+        }
 	}
 
     go func(){
         // call a method with a custom timeout.
-        slot := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
+        resCall := userService.Call("doSomethingThatReturnsValue", 21)
         fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
         select {
-        case res := <-slot.GetResponseChannel():
+        case res := <-resCall.Out():
             fmt.Println("Response1: ", res)
-        case <-slot.GetTimeoutChannel():
+        case <-time.After(time.Second):
             fmt.Println("Timed out :(")
         }
     }()
