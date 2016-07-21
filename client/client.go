@@ -42,7 +42,7 @@ func (s *Slot) GetResponseChannel() <-chan interface{} {
     return s.responseChannel
 }
 
-func (s *Slot) GetTimeoutChannel() <- chan bool {
+func (s *Slot) GetTimeoutChannel() <-chan bool {
     return s.timeoutChannel
 }
 
@@ -114,7 +114,7 @@ func (c *Client) start() {
                     }
 
                 }
-                fmt.Printf("Received response %s.\n", d.CorrelationId)
+                fmt.Println("Received response: ", []byte(d.CorrelationId))
                 if jsonResponse != nil {
                     slot.responseChannel <- jsonResponse
                 } else {
@@ -145,7 +145,7 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*
         panic(err)
     }
 
-    slot := c.getFreeSlot()
+    slot := c.getNewSlot()
 
     err = c.channel.Publish(
         "",             // exchange
@@ -204,7 +204,7 @@ func (c *Client) getSlot(address uintptr) *Slot {
     return (*Slot)(unsafe.Pointer(uintptr(address)))
 }
 
-func (c *Client) getFreeSlot()(*Slot){
+func (c *Client) getNewSlot()(*Slot){
     return &Slot{
             time.Now(),
             make(chan interface{}),
