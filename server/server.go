@@ -170,7 +170,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
                 return
             }
 
-            fmt.Println("Sending response: ", resContent)
+            fmt.Println("Sending response to: ", []byte(d.CorrelationId))
 
             err = s.channel.Publish(
                 "",

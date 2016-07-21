@@ -32,7 +32,7 @@ func main() {
     fmt.Println("Service userService.doSomething invoked")
 
     // call a lot of methods concurrently
-    for i := 0; i < 100000; i++ {
+    for i := 0; i < 1000; i++ {
         go func(idx int) {
             slot := userService.Call("doSomethingThatReturnsValue", idx)
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
