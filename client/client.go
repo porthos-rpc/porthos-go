@@ -2,7 +2,6 @@ package client
 
 import (
     "fmt"
-    "time"
     "strconv"
     "encoding/json"
     "unsafe"
@@ -11,9 +10,8 @@ import (
     "github.com/gfronza/porthos/message"
 )
 
-type ResponseSlot struct {
-    responseChannel chan interface{}
-    timeoutChannel chan bool
+type Response struct {
+    out chan interface{}
 }
 
 // Client is an entry point for making remote calls.
@@ -25,20 +23,12 @@ type Client struct {
     responseQueue *amqp.Queue
 }
 
-func (s *ResponseSlot) getCorrelationID() string {
-    return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(s))))
+func (r *Response) getCorrelationID() string {
+    return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(r))))
 }
 
-func (s *ResponseSlot) free() {
-    close(s.responseChannel)
-}
-
-func (s *ResponseSlot) GetResponseChannel() <-chan interface{} {
-    return s.responseChannel
-}
-
-func (s *ResponseSlot) GetTimeoutChannel() <-chan bool {
-    return s.timeoutChannel
+func (r *Response) Out() <-chan interface{} {
+    return r.out
 }
 
 // NewBroker creates a new instance of AMQP connection.
@@ -97,7 +87,7 @@ func (c *Client) start() {
             address := unmarshallCorrelationID(d.CorrelationId)
 
             func() {
-                slot := c.getResponseSlot(address)
+                res := c.getResponse(address)
 
                 var jsonResponse interface{}
                 var err error
@@ -111,34 +101,23 @@ func (c *Client) start() {
                 }
                 fmt.Println("Received response: ", []byte(d.CorrelationId))
                 if jsonResponse != nil {
-                    slot.responseChannel <- jsonResponse
+                    res.out <- jsonResponse
                 } else {
-                    slot.responseChannel <- d.Body
+                    res.out <- d.Body
                 }
-                slot.free()
             }()
         }
     }()
 }
 
-// Call calls a remote procedure/service with the given name and arguments, using default TTL.
-func (c *Client) Call(method string, args ...interface{}) (*ResponseSlot) {
-    return c.doCallWithTTL(c.defaultTTL, method, args...)
-}
-
-// CallWithTTL calls a remote procedure/service with the given tll, name and arguments.
-func (c *Client) CallWithTTL(ttl int64, method string, args ...interface{}) (*ResponseSlot) {
-    return c.doCallWithTTL(ttl, method, args...)
-}
-
-func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*ResponseSlot) {
+func (c *Client) Call(method string, args ...interface{}) (*Response) {
     body, err := json.Marshal(&message.MessageBody{method, args})
 
     if err != nil {
         panic(err)
     }
 
-    slot := c.getNewResponseSlot()
+    res := c.getNewResponse()
 
     err = c.channel.Publish(
         "",             // exchange
@@ -146,9 +125,9 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*
         false,          // mandatory
         false,          // immediate
         amqp.Publishing{
-                Expiration:    strconv.FormatInt(ttl, 10),
+                Expiration:    strconv.FormatInt(c.defaultTTL, 10),
                 ContentType:   "application/json",
-                CorrelationId: slot.getCorrelationID(),
+                CorrelationId: res.getCorrelationID(),
                 ReplyTo:       c.responseQueue.Name,
                 Body:          body,
         })
@@ -157,12 +136,7 @@ func (c *Client) doCallWithTTL(ttl int64, method string, args ...interface{}) (*
         panic(err)
     }
 
-    // schedule a slot cleanup after TTL value.
-    time.AfterFunc(time.Duration(ttl)*time.Millisecond, func() {
-            slot.timeoutChannel <- true
-    })
-
-    return slot
+    return res
 }
 
 // CallVoid calls a remote service procedure/service which will not provide any return value.
@@ -193,15 +167,12 @@ func (c *Client) Close() {
     c.channel.Close()
 }
 
-func (c *Client) getResponseSlot(address uintptr) *ResponseSlot {
-    return (*ResponseSlot)(unsafe.Pointer(uintptr(address)))
+func (c *Client) getResponse(address uintptr) *Response {
+    return (*Response)(unsafe.Pointer(uintptr(address)))
 }
 
-func (c *Client) getNewResponseSlot()(*ResponseSlot){
-    return &ResponseSlot{
-            make(chan interface{}),
-            make(chan bool, 1),
-        }
+func (c *Client) getNewResponse()(*Response){
+    return &Response{make(chan interface{})}
 }
 
 func unmarshallCorrelationID(correlationID string) (uintptr) {

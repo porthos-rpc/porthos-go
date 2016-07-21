@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "os"
+    "time"
 
     "github.com/gfronza/porthos/client"
 )
@@ -34,14 +35,14 @@ func main() {
     // call a lot of methods concurrently
     for i := 0; i < 1000; i++ {
         go func(idx int) {
-            resp := userService.Call("doSomethingThatReturnsValue", idx)
+            resCall := userService.Call("doSomethingThatReturnsValue", idx)
             fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
 
             select {
-            case resContent := <-resp.GetResponseChannel():
-                data := resContent.(map[string]interface{})
+            case res := <-resCall.Out():
+                data := res.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-resp.GetTimeoutChannel():
+            case <-time.After(20 * time.Second):
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
@@ -49,13 +50,13 @@ func main() {
 
     go func(){
         // call a method with a custom timeout.
-        resp := userService.CallWithTTL(200, "doSomethingThatReturnsValue", 21)
+        resCall := userService.Call("doSomethingThatReturnsValue", 21)
         fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
 
         select {
-        case resContent := <-resp.GetResponseChannel():
-            fmt.Println("Response1: ", resContent)
-        case <-resp.GetTimeoutChannel():
+        case res := <-resCall.Out():
+            fmt.Println("Response1: ", res)
+        case <-time.After(time.Second):
             fmt.Println("Timed out :(")
         }
     }()
