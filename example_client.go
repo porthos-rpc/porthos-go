@@ -35,31 +35,19 @@ func main() {
     // call a lot of methods concurrently
     for i := 0; i < 1000; i++ {
         go func(idx int) {
-            resCall := userService.Call("doSomethingThatReturnsValue", idx)
-            fmt.Printf("Service userService.doSomethingThatReturnsValue invoked %d\n", idx)
+            response := userService.Call("doSomethingThatReturnsValue", idx)
+            defer response.Dispose()
 
             select {
-            case res := <-resCall.Out():
+            case res := <-response.Out():
                 data := res.(map[string]interface{})
                 fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
-            case <-time.After(20 * time.Second):
+            case <-time.After(2 * time.Second):
                 fmt.Printf("Timed out %d :(\n", idx)
             }
         }(i)
 	}
 
-    go func(){
-        // call a method with a custom timeout.
-        resCall := userService.Call("doSomethingThatReturnsValue", 21)
-        fmt.Println("Service userService.doSomethingThatReturnsValue invoked. Waiting for response")
-
-        select {
-        case res := <-resCall.Out():
-            fmt.Println("Response1: ", res)
-        case <-time.After(time.Second):
-            fmt.Println("Timed out :(")
-        }
-    }()
     // wait forever (to give time to execute all goroutines)
     select{}
 }

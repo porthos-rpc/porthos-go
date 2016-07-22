@@ -31,6 +31,10 @@ func (r *Response) Out() <-chan interface{} {
     return r.out
 }
 
+func (r *Response) Dispose() {
+    close(r.out)
+}
+
 // NewBroker creates a new instance of AMQP connection.
 func NewBroker(amqpURL string) (*amqp.Connection, error) {
     return amqp.Dial(amqpURL)
