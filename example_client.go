@@ -4,6 +4,7 @@ import (
     "fmt"
     "os"
     "time"
+    "encoding/json"
 
     "github.com/gfronza/porthos/client"
 )
@@ -40,8 +41,10 @@ func main() {
 
             select {
             case res := <-response.Out():
-                data := res.(map[string]interface{})
-                fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, data["original"], data["sum"])
+                var jsonResponse map[string]interface{}
+                json.Unmarshal(res, &jsonResponse)
+
+                fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, jsonResponse["original"], jsonResponse["sum"])
             case <-time.After(2 * time.Second):
                 fmt.Printf("Timed out %d :(\n", idx)
             }

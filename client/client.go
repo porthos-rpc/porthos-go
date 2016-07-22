@@ -1,7 +1,6 @@
 package client
 
 import (
-    "fmt"
     "strconv"
     "encoding/json"
     "unsafe"
@@ -11,7 +10,7 @@ import (
 )
 
 type Response struct {
-    out chan interface{}
+    out chan []byte
 }
 
 // Client is an entry point for making remote calls.
@@ -27,7 +26,7 @@ func (r *Response) getCorrelationID() string {
     return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(r))))
 }
 
-func (r *Response) Out() <-chan interface{} {
+func (r *Response) Out() <-chan []byte {
     return r.out
 }
 
@@ -95,26 +94,12 @@ func (c *Client) start() {
 
 func (c *Client) processResponse(d amqp.Delivery) {
     d.Ack(false)
+
     address := c.unmarshallCorrelationID(d.CorrelationId)
 
     res := c.getResponse(address)
 
-    var jsonResponse interface{}
-    var err error
-
-    if d.ContentType == "application/json" {
-        err = json.Unmarshal(d.Body, &jsonResponse)
-        if err != nil {
-            fmt.Println("Unmarshal error: ", err.Error())
-        }
-
-    }
-    fmt.Println("Received response: ", []byte(d.CorrelationId))
-    if jsonResponse != nil {
-        res.out <- jsonResponse
-    } else {
-        res.out <- d.Body
-    }
+    res.out <- d.Body
 }
 
 func (c *Client) Call(method string, args ...interface{}) (*Response) {
@@ -179,7 +164,7 @@ func (c *Client) getResponse(address uintptr) *Response {
 }
 
 func (c *Client) makeNewResponse()(*Response){
-    return &Response{make(chan interface{})}
+    return &Response{make(chan []byte)}
 }
 
 func (c *Client) unmarshallCorrelationID(correlationID string) (uintptr) {

@@ -12,11 +12,8 @@ Provide a language-agnostic RPC library to write distributed systems.
 
 ## Client
 
-The client is very simple. `NewClient` takes a broker, a `service name` and a timeout value (message TTL). The `service name` is only intended to serve as the request `routing key` (meaning every `service name` (or microservice) has its own queue).
+The client is very simple. `NewClient` takes a broker, a `service name` and a timeout value (message TTL). The `service name` is only intended to serve as the request `routing key` (meaning every `service name` (or microservice) has its own queue). Each client declares only one `response queue`, in order to prevent broker's resources wastage.
 
-Each `Call` returns two channels: one for the actual response and other for signaling a timeout. The response depends on the ContentType returned by the remote procedure. In case of an `application/json` response, a map will be returned, otherwise you will get a string.
-
-Each client instance has its own `response queue`.
 
 ```go
 // first of all you need a broker
@@ -24,17 +21,20 @@ broker, _ := client.NewBroker(os.Getenv("AMQP_URL"))
 defer broker.Close()
 
 // then you create a new client (you can have as many clients as you want using the same broker)
-userService, _ := client.NewClient(broker, "UserService", 120)
-defer userService.Close()
+calculatorService, _ := client.NewClient(broker, "CalculatorService", 120)
+defer calculatorService.Close()
 
-// finally the remote call. It returns two channels.
-resp := userService.Call("doSomethingThatReturnsValue", 20)
+// finally the remote call. It returns a response that contains the output channel.
+response := calculatorService.Call("addOne", 10)
+defer response.Dispose()
 
-// handle the actual response and timeout.
 select {
-case res := <-resp.GetResponseChannel():
-    fmt.Printf("Response: %#v\n", res)
-case <-resp.GetTimeoutChannel():
+case res := <-response.Out():
+    var jsonResponse map[string]interface{}
+    json.Unmarshal(res, &jsonResponse)
+
+    fmt.Printf("Original: %f, sum: %f\n", jsonResponse["original"], jsonResponse["sum"])
+case <-time.After(2 * time.Second):
     fmt.Println("Timed out :(")
 }
 ```
@@ -47,26 +47,26 @@ The server also takes a broker and a `service name`. After that, you `Register` 
 broker, _ := rpc.NewBroker(os.Getenv("AMQP_URL"))
 defer broker.Close()
 
-userService, _ := rpc.NewServer(broker, "UserService")
-defer userService.Close()
+calculatorService, _ := rpc.NewServer(broker, "CalculatorService")
+defer calculatorService.Close()
 
-userService.Register("doSomethingThatReturnsValue", func(req rpc.Request, res *rpc.Response) {
-    type test struct {
+calculatorService.Register("addOne", func(req rpc.Request, res *rpc.Response) {
+    type response struct {
         Original    float64 `json:"original"`
         Sum         float64 `json:"sum"`
     }
 
     x := req.GetArg(0).AsFloat64()
 
-    res.JSON(test{x, x+1})
+    res.JSON(response{x, x+1})
 })
 
-userService.Register("doSomethingThatReturnsString", func(req rpc.Request, res *rpc.Response) {
-    fmt.Sprintf("Hello %s", req.GetArg(0).AsString())
+calculatorService.Register("subtract", func(req rpc.Request, res *rpc.Response) {
+    // subtraction logic here...
 })
 
 fmt.Println("RPC server is waiting for incoming requests...")
-userService.ServeForever()
+calculatorService.ServeForever()
 ```
 
 ## Acknowledgements
