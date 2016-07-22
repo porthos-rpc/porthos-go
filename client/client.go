@@ -56,7 +56,7 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
     dc, err := ch.Consume(
             q.Name, // queue
             "",     // consumer
-            true,   // auto-ack
+            false,   // auto-ack
             false,  // exclusive
             false,  // no-local
             false,  // no-wait
@@ -84,30 +84,33 @@ func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Cl
 func (c *Client) start() {
     go func() {
         for d := range c.deliveryChannel {
-            address := unmarshallCorrelationID(d.CorrelationId)
-
-            func() {
-                res := c.getResponse(address)
-
-                var jsonResponse interface{}
-                var err error
-
-                if d.ContentType == "application/json" {
-                    err = json.Unmarshal(d.Body, &jsonResponse)
-                    if err != nil {
-                        fmt.Println("Unmarshal error: ", err.Error())
-                    }
-
-                }
-                fmt.Println("Received response: ", []byte(d.CorrelationId))
-                if jsonResponse != nil {
-                    res.out <- jsonResponse
-                } else {
-                    res.out <- d.Body
-                }
-            }()
+            c.processResponse(d)
         }
     }()
+}
+
+func (c *Client) processResponse(d amqp.Delivery) {
+    d.Ack(false)
+    address := c.unmarshallCorrelationID(d.CorrelationId)
+
+    res := c.getResponse(address)
+
+    var jsonResponse interface{}
+    var err error
+
+    if d.ContentType == "application/json" {
+        err = json.Unmarshal(d.Body, &jsonResponse)
+        if err != nil {
+            fmt.Println("Unmarshal error: ", err.Error())
+        }
+
+    }
+    fmt.Println("Received response: ", []byte(d.CorrelationId))
+    if jsonResponse != nil {
+        res.out <- jsonResponse
+    } else {
+        res.out <- d.Body
+    }
 }
 
 func (c *Client) Call(method string, args ...interface{}) (*Response) {
@@ -117,7 +120,7 @@ func (c *Client) Call(method string, args ...interface{}) (*Response) {
         panic(err)
     }
 
-    res := c.getNewResponse()
+    res := c.makeNewResponse()
 
     err = c.channel.Publish(
         "",             // exchange
@@ -171,10 +174,10 @@ func (c *Client) getResponse(address uintptr) *Response {
     return (*Response)(unsafe.Pointer(uintptr(address)))
 }
 
-func (c *Client) getNewResponse()(*Response){
+func (c *Client) makeNewResponse()(*Response){
     return &Response{make(chan interface{})}
 }
 
-func unmarshallCorrelationID(correlationID string) (uintptr) {
+func (c *Client) unmarshallCorrelationID(correlationID string) (uintptr) {
     return message.BytesToUintptr([]byte(correlationID))
 }
