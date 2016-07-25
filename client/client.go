@@ -4,6 +4,7 @@ import (
     "strconv"
     "encoding/json"
     "unsafe"
+    "sync"
 
     "github.com/streadway/amqp"
     "github.com/gfronza/porthos/message"
@@ -11,6 +12,8 @@ import (
 
 type Response struct {
     out chan []byte
+    closed bool
+    mutex *sync.Mutex
 }
 
 // Client is an entry point for making remote calls.
@@ -31,7 +34,12 @@ func (r *Response) Out() <-chan []byte {
 }
 
 func (r *Response) Dispose() {
-    close(r.out)
+    r.mutex.Lock()
+    defer r.mutex.Unlock()
+    if !r.closed {
+        r.closed = true
+        close(r.out)
+    }
 }
 
 // NewBroker creates a new instance of AMQP connection.
@@ -99,7 +107,13 @@ func (c *Client) processResponse(d amqp.Delivery) {
 
     res := c.getResponse(address)
 
-    res.out <- d.Body
+    func() {
+        res.mutex.Lock()
+        defer res.mutex.Unlock()
+        if !res.closed {
+            res.out <- d.Body
+        }
+    }()
 }
 
 func (c *Client) Call(method string, args ...interface{}) (*Response) {
@@ -164,7 +178,7 @@ func (c *Client) getResponse(address uintptr) *Response {
 }
 
 func (c *Client) makeNewResponse()(*Response){
-    return &Response{make(chan []byte)}
+    return &Response{make(chan []byte), false, new(sync.Mutex)}
 }
 
 func (c *Client) unmarshallCorrelationID(correlationID string) (uintptr) {

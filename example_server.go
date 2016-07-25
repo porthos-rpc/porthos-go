@@ -17,7 +17,7 @@ func main() {
 
     defer broker.Close()
 
-    userService, err := rpc.NewServer(broker, "UserService", 4)
+    userService, err := rpc.NewServer(broker, "UserService", 40)
 
     if err != nil {
         fmt.Printf("Error creating server")

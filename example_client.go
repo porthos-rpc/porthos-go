@@ -5,6 +5,7 @@ import (
     "os"
     "time"
     "encoding/json"
+    "sync"
 
     "github.com/gfronza/porthos/client"
 )
@@ -33,9 +34,12 @@ func main() {
     userService.CallVoid("doSomething", 20)
     fmt.Println("Service userService.doSomething invoked")
 
+    var wg sync.WaitGroup
+
     // call a lot of methods concurrently
     for i := 0; i < 1000; i++ {
         go func(idx int) {
+            wg.Add(1)
             response := userService.Call("doSomethingThatReturnsValue", idx)
             defer response.Dispose()
 
@@ -48,9 +52,10 @@ func main() {
             case <-time.After(2 * time.Second):
                 fmt.Printf("Timed out %d :(\n", idx)
             }
+            wg.Done()
         }(i)
 	}
 
-    // wait forever (to give time to execute all goroutines)
-    select{}
+    // wait (to give time to execute all goroutines)
+    wg.Wait()
 }
