@@ -81,5 +81,5 @@ Docker is being used for the local environment. To build/run/test your code you 
 
 ```sh
 $ docker-compose run server bash
-root@porthos:/go/src/github.com/gfronza/porthos# go run example_client.go
+root@porthos:/go/src/github.com/porthos-rpc/porthos-go# go run example_client.go
 ```

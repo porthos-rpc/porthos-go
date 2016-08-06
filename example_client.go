@@ -7,7 +7,7 @@ import (
     "encoding/json"
     "sync"
 
-    "github.com/gfronza/porthos/client"
+    "github.com/porthos-rpc/porthos-go/client"
 )
 
 func main() {

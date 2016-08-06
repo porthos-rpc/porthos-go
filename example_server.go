@@ -4,7 +4,7 @@ import (
     "fmt"
     "os"
 
-    rpc "github.com/gfronza/porthos/server"
+    rpc "github.com/porthos-rpc/porthos-go/server"
 )
 
 func main() {
