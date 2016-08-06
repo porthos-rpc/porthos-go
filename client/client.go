@@ -7,7 +7,7 @@ import (
     "sync"
 
     "github.com/streadway/amqp"
-    "github.com/gfronza/porthos/message"
+    "github.com/porthos-rpc/porthos-go/message"
 )
 
 type Response struct {
