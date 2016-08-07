@@ -104,7 +104,7 @@ func (c *Client) start() {
 func (c *Client) processResponse(d amqp.Delivery) {
     d.Ack(false)
 
-    log.Success("Ack. Received response in %s for slot: %d", d.RoutingKey, []byte(d.CorrelationId))
+    log.Success("Ack. Received response in '%s' for slot: '%d'", d.RoutingKey, []byte(d.CorrelationId))
 
     address := c.unmarshallCorrelationID(d.CorrelationId)
 
@@ -142,7 +142,7 @@ func (c *Client) Call(method string, args ...interface{}) (*Response) {
                 Body:          body,
         })
 
-    log.Info("Published method %s in %s. Expecting response in slot %d", method, c.responseQueue.Name, []byte(correlationID))
+    log.Info("Published method '%s' in '%s'. Expecting response in queue '%s' and slot '%d'", method, c.serviceName, c.responseQueue.Name, []byte(correlationID))
 
     if err != nil {
         panic(err)

@@ -164,11 +164,11 @@ func (s *Server) processRequest(d amqp.Delivery) {
             resContentType := res.GetContentType()
 
             if err != nil {
-                log.Error("Error encoding response content: %s", err.Error())
+                log.Error("Error encoding response content: '%s'", err.Error())
                 return
             }
 
-            log.Info("Sending response to queue %s. Slot: %d", d.ReplyTo, []byte(d.CorrelationId))
+            log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
 
             err = s.channel.Publish(
                 "",
@@ -182,17 +182,17 @@ func (s *Server) processRequest(d amqp.Delivery) {
             })
 
             if err != nil {
-                log.Error("Publish Error: %s", err.Error())
+                log.Error("Publish Error: '%s'", err.Error())
                 return
             } else {
                 if !s.autoAck {
                     d.Ack(false)
-                    log.Success("Ack method %s from slot %d", msg.Method, []byte(d.CorrelationId))
+                    log.Success("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
                 }
             }
         }(d)
     } else {
-        log.Error("Method %s not found.", msg.Method)
+        log.Error("Method '%s' not found.", msg.Method)
         if !s.autoAck {
             d.Reject(false)
         }
