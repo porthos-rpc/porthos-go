@@ -187,7 +187,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
             } else {
                 if !s.autoAck {
                     d.Ack(false)
-                    log.Success("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
+                    log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
                 }
             }
         }(d)

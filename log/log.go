@@ -2,19 +2,16 @@ package log
 
 import (
     "fmt"
-    "os"
     "time"
 )
 
 type LogLevel string
 
 const (
-    LPanic   LogLevel = "PANIC"
-    LFatal   LogLevel = "FATAL"
-    LError   LogLevel = "ERROR"
-    LWarning LogLevel = "WARNING"
     LInfo    LogLevel = "INFO"
-    LSuccess LogLevel = "SUCCESS"
+    LDebug   LogLevel = "DEBUG"
+    LWarning LogLevel = "WARNING"
+    LError   LogLevel = "ERROR"
 )
 
 var (
@@ -30,18 +27,14 @@ var (
 
 func colorForLevel(level LogLevel) string {
     switch (level) {
-    case LPanic:
-        return red
-    case LFatal:
-        return red
     case LError:
         return red
     case LWarning:
         return yellow
     case LInfo:
         return cyan
-    case LSuccess:
-        return green
+    case LDebug:
+        return magenta
     default:
         return white
     }
@@ -52,17 +45,6 @@ func doLog(level LogLevel, format string, args ...interface{}) {
         time.Now().Format("2006/01/02 - 15:04:05"),
         colorForLevel(level), level, reset,
         fmt.Sprintf(format, args...))
-}
-
-func Panic(format string, args ...interface{}) {
-    doLog(LPanic, format, args...)
-    msg := fmt.Sprintf(format, args...)
-    panic(msg)
-}
-
-func Fatal(format string, args ...interface{}) {
-    doLog(LFatal, format, args...)
-    os.Exit(1)
 }
 
 func Error(format string, args ...interface{}) {
@@ -77,6 +59,6 @@ func Info(format string, args ...interface{}) {
     doLog(LInfo, format, args...)
 }
 
-func Success(format string, args ...interface{}) {
-    doLog(LSuccess, format, args...)
+func Debug(format string, args ...interface{}) {
+    doLog(LDebug, format, args...)
 }
