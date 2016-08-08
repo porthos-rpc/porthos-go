@@ -47,7 +47,7 @@ The server also takes a broker and a `service name`. After that, you `Register` 
 broker, _ := rpc.NewBroker(os.Getenv("AMQP_URL"))
 defer broker.Close()
 
-calculatorService, _ := rpc.NewServer(broker, "CalculatorService")
+calculatorService, _ := rpc.NewServer(broker, "CalculatorService", 10, false)
 defer calculatorService.Close()
 
 calculatorService.Register("addOne", func(req rpc.Request, res *rpc.Response) {

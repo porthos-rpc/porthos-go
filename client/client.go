@@ -7,6 +7,7 @@ import (
     "sync"
 
     "github.com/streadway/amqp"
+    "github.com/porthos-rpc/porthos-go/log"
     "github.com/porthos-rpc/porthos-go/message"
 )
 
@@ -103,6 +104,8 @@ func (c *Client) start() {
 func (c *Client) processResponse(d amqp.Delivery) {
     d.Ack(false)
 
+    log.Debug("Ack. Received response in '%s' for slot: '%d'", d.RoutingKey, []byte(d.CorrelationId))
+
     address := c.unmarshallCorrelationID(d.CorrelationId)
 
     res := c.getResponse(address)
@@ -124,6 +127,7 @@ func (c *Client) Call(method string, args ...interface{}) (*Response) {
     }
 
     res := c.makeNewResponse()
+    correlationID := res.getCorrelationID()
 
     err = c.channel.Publish(
         "",             // exchange
@@ -133,10 +137,12 @@ func (c *Client) Call(method string, args ...interface{}) (*Response) {
         amqp.Publishing{
                 Expiration:    strconv.FormatInt(c.defaultTTL, 10),
                 ContentType:   "application/json",
-                CorrelationId: res.getCorrelationID(),
+                CorrelationId: correlationID,
                 ReplyTo:       c.responseQueue.Name,
                 Body:          body,
         })
+
+    log.Info("Published method '%s' in '%s'. Expecting response in queue '%s' and slot '%d'", method, c.serviceName, c.responseQueue.Name, []byte(correlationID))
 
     if err != nil {
         panic(err)

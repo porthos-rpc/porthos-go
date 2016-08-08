@@ -1,10 +1,10 @@
 package server
 
 import (
-    "fmt"
     "encoding/json"
 
     "github.com/streadway/amqp"
+    "github.com/porthos-rpc/porthos-go/log"
     "github.com/porthos-rpc/porthos-go/message"
 )
 
@@ -26,6 +26,7 @@ type Server struct {
     channel         *amqp.Channel
     requestChannel  <-chan amqp.Delivery
     methods         map[string]MethodHandler
+    autoAck         bool
 }
 
 
@@ -35,7 +36,7 @@ func NewBroker(amqpURL string) (*amqp.Connection, error) {
 }
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Server, error) {
+func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int, autoAck bool) (*Server, error) {
     ch, err := conn.Channel()
 
     if err != nil {
@@ -61,7 +62,7 @@ func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int) (*Serv
     dc, err := ch.Consume(
         serviceName, // queue
         "",          // consumer
-        false,       // auto-ack
+        autoAck,     // auto-ack
         false,       // exclusive
         false,       // no-local
         false,       // no-wait
@@ -137,14 +138,11 @@ func (s *Server) processRequest(d amqp.Delivery) {
     err := json.Unmarshal(d.Body, msg)
 
     if err != nil {
-        fmt.Println("Unmarshal error: ", err.Error())
+        log.Error("Unmarshal error: %s", err.Error())
         return
     }
 
     if method, ok := s.methods[msg.Method]; ok {
-        // ack early
-        d.Ack(false)
-
         responseChannel := make(chan *Response)
 
         req := Request{msg.Args}
@@ -166,11 +164,11 @@ func (s *Server) processRequest(d amqp.Delivery) {
             resContentType := res.GetContentType()
 
             if err != nil {
-                fmt.Println("Error encoding response content: ", err.Error())
+                log.Error("Error encoding response content: '%s'", err.Error())
                 return
             }
 
-            fmt.Println("Sending response to: ", []byte(d.CorrelationId))
+            log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
 
             err = s.channel.Publish(
                 "",
@@ -184,14 +182,20 @@ func (s *Server) processRequest(d amqp.Delivery) {
             })
 
             if err != nil {
-                fmt.Println("Publish Error: ", err.Error())
+                log.Error("Publish Error: '%s'", err.Error())
                 return
+            } else {
+                if !s.autoAck {
+                    d.Ack(false)
+                    log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
+                }
             }
         }(d)
     } else {
-        // TODO: Return timeout?
-        fmt.Println("Cannot find method:", msg.Method)
-        d.Reject(false)
+        log.Error("Method '%s' not found.", msg.Method)
+        if !s.autoAck {
+            d.Reject(false)
+        }
     }
 }
 
