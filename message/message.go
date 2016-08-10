@@ -2,13 +2,13 @@ package message
 
 import (
 	"encoding/binary"
-	"unsafe"
 	"fmt"
+	"unsafe"
 )
 
 type MessageBody struct {
-    Method  string          `json:"method"`
-    Args    []interface{}   `json:"args"`
+	Method string        `json:"method"`
+	Args   []interface{} `json:"args"`
 }
 
 func UintptrToBytes(value uintptr) []byte {
