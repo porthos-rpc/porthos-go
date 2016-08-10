@@ -1,7 +1,7 @@
 server:
   build: .
   working_dir: /go/src/github.com/porthos-rpc/porthos-go
-  command: dockerize -wait tcp://broker:5672 -timeout 60s go run example_server.go
+  command: dockerize -wait tcp://broker:5672 -timeout 60s go run _examples/server/example_server.go
   links:
    - broker
   environment:

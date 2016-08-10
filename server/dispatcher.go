@@ -3,10 +3,9 @@ package server
 type Dispatcher struct {
 	// A pool of workers channels that are registered with the dispatcher
 	WorkerPool chan chan Job
-	JobQueue chan Job
-    maxWorkers int
+	JobQueue   chan Job
+	maxWorkers int
 }
-
 
 // NewDispatcher creates a new dispatcher instance to put jobs into the worker pool.
 func NewDispatcher(jobQueue chan Job, maxWorkers int) *Dispatcher {
@@ -14,10 +13,9 @@ func NewDispatcher(jobQueue chan Job, maxWorkers int) *Dispatcher {
 	return &Dispatcher{WorkerPool: pool, JobQueue: jobQueue, maxWorkers: maxWorkers}
 }
 
-
 // Run creates and run the workers (based on maxWorkers).
 func (d *Dispatcher) Run() {
-    // starting n number of workers
+	// starting n number of workers
 	for i := 0; i < d.maxWorkers; i++ {
 		worker := NewWorker(d.WorkerPool)
 		worker.Start()
