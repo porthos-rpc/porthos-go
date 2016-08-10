@@ -8,16 +8,24 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Request represents a rpc request.
 type Request struct {
 	args []interface{}
 }
 
+// Response represents a rpc response.
 type Response struct {
 	content     []byte
 	contentType string
 }
 
+// MethodHandler represents a rpc method handler.
 type MethodHandler func(req Request, res *Response)
+
+// Broker holds an implementation-specific connection.
+type Broker struct {
+	conn *amqp.Connection
+}
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
@@ -29,22 +37,29 @@ type Server struct {
 	autoAck        bool
 }
 
+// ServerOptions represent all the options supported by the server.
 type ServerOptions struct {
 	MaxWorkers int
 	AutoAck    bool
 }
 
 // NewBroker creates a new instance of AMQP connection.
-func NewBroker(amqpURL string) (*amqp.Connection, error) {
-	return amqp.Dial(amqpURL)
+func NewBroker(amqpURL string) (*Broker, error) {
+	conn, err := amqp.Dial(amqpURL)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Broker{conn}, nil
 }
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(conn *amqp.Connection, serviceName string, options ServerOptions) (*Server, error) {
-	ch, err := conn.Channel()
+func NewServer(broker *Broker, serviceName string, options ServerOptions) (*Server, error) {
+	ch, err := broker.conn.Channel()
 
 	if err != nil {
-		conn.Close()
+		broker.conn.Close()
 		return nil, err
 	}
 
@@ -99,12 +114,17 @@ func NewServer(conn *amqp.Connection, serviceName string, options ServerOptions)
 	return s, nil
 }
 
+// Close the broker connection.
+func (b *Broker) Close() {
+	b.conn.Close()
+}
+
 // GetArg returns an argument giving the index.
 func (r *Request) GetArg(index int) *Argument {
 	return &Argument{r.args[index]}
 }
 
-// SetContent sets the content of the method's response.
+// JSON sets the content of the method's response.
 func (r *Response) JSON(c interface{}) {
 	if c == nil {
 		panic("Response content is empty")
@@ -120,12 +140,12 @@ func (r *Response) JSON(c interface{}) {
 	r.contentType = "application/json"
 }
 
-// GetEncodedContent returns the method's response encoded in JSON format.
+// GetContent returns the method's response encoded in JSON format.
 func (r *Response) GetContent() []byte {
 	return r.content
 }
 
-// GetEncodedContent returns the method's response encoded in JSON format.
+// GetContentType returns the method's response encoded in JSON format.
 func (r *Response) GetContentType() string {
 	return r.contentType
 }
@@ -195,11 +215,11 @@ func (s *Server) processRequest(d amqp.Delivery) {
 			if err != nil {
 				log.Error("Publish Error: '%s'", err.Error())
 				return
-			} else {
-				if !s.autoAck {
-					d.Ack(false)
-					log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
-				}
+			}
+
+			if !s.autoAck {
+				d.Ack(false)
+				log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
 			}
 		}(d)
 	} else {
