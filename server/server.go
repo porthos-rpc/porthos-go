@@ -1,215 +1,226 @@
 package server
 
 import (
-    "encoding/json"
+	"encoding/json"
 
-    "github.com/streadway/amqp"
-    "github.com/porthos-rpc/porthos-go/log"
-    "github.com/porthos-rpc/porthos-go/message"
+	"github.com/porthos-rpc/porthos-go/log"
+	"github.com/porthos-rpc/porthos-go/message"
+	"github.com/streadway/amqp"
 )
 
 type Request struct {
-    args []interface{}
+	args []interface{}
 }
 
 type Response struct {
-    content     []byte
-    contentType string
+	content     []byte
+	contentType string
 }
 
 type MethodHandler func(req Request, res *Response)
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
-    jobQueue        chan Job
-    serviceName     string
-    channel         *amqp.Channel
-    requestChannel  <-chan amqp.Delivery
-    methods         map[string]MethodHandler
-    autoAck         bool
+	jobQueue       chan Job
+	serviceName    string
+	channel        *amqp.Channel
+	requestChannel <-chan amqp.Delivery
+	methods        map[string]MethodHandler
+	autoAck        bool
 }
 
+type ServerOptions struct {
+	MaxWorkers int
+	AutoAck    bool
+}
 
 // NewBroker creates a new instance of AMQP connection.
 func NewBroker(amqpURL string) (*amqp.Connection, error) {
-    return amqp.Dial(amqpURL)
+	return amqp.Dial(amqpURL)
 }
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(conn *amqp.Connection, serviceName string, maxWorkers int, autoAck bool) (*Server, error) {
-    ch, err := conn.Channel()
+func NewServer(conn *amqp.Connection, serviceName string, options ServerOptions) (*Server, error) {
+	ch, err := conn.Channel()
 
-    if err != nil {
-        conn.Close()
-        return nil, err
-    }
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
 
-    // create the response queue (let the amqp server to pick a name for us)
-    _, err = ch.QueueDeclare(
-        serviceName, // name
-        true,        // durable
-        false,       // delete when usused
-        false,       // exclusive
-        false,       // noWait
-        nil,         // arguments
-    )
+	// create the response queue (let the amqp server to pick a name for us)
+	_, err = ch.QueueDeclare(
+		serviceName, // name
+		true,        // durable
+		false,       // delete when usused
+		false,       // exclusive
+		false,       // noWait
+		nil,         // arguments
+	)
 
-    if err != nil {
-        ch.Close()
-        return nil, err
-    }
+	if err != nil {
+		ch.Close()
+		return nil, err
+	}
 
-    dc, err := ch.Consume(
-        serviceName, // queue
-        "",          // consumer
-        autoAck,     // auto-ack
-        false,       // exclusive
-        false,       // no-local
-        false,       // no-wait
-        nil,         // args
-    )
+	dc, err := ch.Consume(
+		serviceName,     // queue
+		"",              // consumer
+		options.AutoAck, // auto-ack
+		false,           // exclusive
+		false,           // no-local
+		false,           // no-wait
+		nil,             // args
+	)
 
-    if err != nil {
-        ch.Close()
-        return nil, err
-    }
+	if err != nil {
+		ch.Close()
+		return nil, err
+	}
 
-    s := &Server{
-        serviceName:    serviceName,
-        channel:        ch,
-        requestChannel: dc,
-        methods:        make(map[string]MethodHandler),
-        jobQueue:       make(chan Job, maxWorkers),
-    }
+	maxWorkers := options.MaxWorkers
 
-    s.startWorkers(maxWorkers)
-    s.start()
+	if maxWorkers <= 0 {
+		maxWorkers = 100
+	}
 
-    return s, nil
+	s := &Server{
+		serviceName:    serviceName,
+		channel:        ch,
+		requestChannel: dc,
+		methods:        make(map[string]MethodHandler),
+		jobQueue:       make(chan Job, maxWorkers),
+		autoAck:        options.AutoAck,
+	}
+
+	s.startWorkers(maxWorkers)
+	s.start()
+
+	return s, nil
 }
 
 // GetArg returns an argument giving the index.
 func (r *Request) GetArg(index int) *Argument {
-    return &Argument{r.args[index]}
+	return &Argument{r.args[index]}
 }
 
 // SetContent sets the content of the method's response.
 func (r *Response) JSON(c interface{}) {
-    if c == nil {
-        panic("Response content is empty")
-    }
+	if c == nil {
+		panic("Response content is empty")
+	}
 
-    jsonContent, err := json.Marshal(&c)
+	jsonContent, err := json.Marshal(&c)
 
-    if err != nil {
-        panic(err)
-    }
+	if err != nil {
+		panic(err)
+	}
 
-    r.content = jsonContent
-    r.contentType = "application/json"
+	r.content = jsonContent
+	r.contentType = "application/json"
 }
 
 // GetEncodedContent returns the method's response encoded in JSON format.
 func (r *Response) GetContent() []byte {
-    return r.content
+	return r.content
 }
 
 // GetEncodedContent returns the method's response encoded in JSON format.
 func (r *Response) GetContentType() string {
-    return r.contentType
+	return r.contentType
 }
 
 func (s *Server) startWorkers(maxWorkers int) {
-    dispatcher := NewDispatcher(s.jobQueue, maxWorkers)
-    dispatcher.Run()
+	dispatcher := NewDispatcher(s.jobQueue, maxWorkers)
+	dispatcher.Run()
 }
 
 func (s *Server) start() {
-    go func() {
-        for d := range s.requestChannel {
-            s.processRequest(d)
-        }
-    }()
+	go func() {
+		for d := range s.requestChannel {
+			s.processRequest(d)
+		}
+	}()
 }
 
 func (s *Server) processRequest(d amqp.Delivery) {
-    msg := new(message.MessageBody)
+	msg := new(message.MessageBody)
 
-    err := json.Unmarshal(d.Body, msg)
+	err := json.Unmarshal(d.Body, msg)
 
-    if err != nil {
-        log.Error("Unmarshal error: %s", err.Error())
-        return
-    }
+	if err != nil {
+		log.Error("Unmarshal error: %s", err.Error())
+		return
+	}
 
-    if method, ok := s.methods[msg.Method]; ok {
-        responseChannel := make(chan *Response)
+	if method, ok := s.methods[msg.Method]; ok {
+		responseChannel := make(chan *Response)
 
-        req := Request{msg.Args}
+		req := Request{msg.Args}
 
-        // create the job with arguments and a response channel to post the results.
-        work := Job{Method: method, Request: req, ResponseChannel: responseChannel}
+		// create the job with arguments and a response channel to post the results.
+		work := Job{Method: method, Request: req, ResponseChannel: responseChannel}
 
-        // queue the job.
-        s.jobQueue <- work
+		// queue the job.
+		s.jobQueue <- work
 
-        // wait for the response asynchronously.
-        go func(d amqp.Delivery) {
-            // wait the response
-            res := <-responseChannel
+		// wait for the response asynchronously.
+		go func(d amqp.Delivery) {
+			// wait the response
+			res := <-responseChannel
 
-            close(responseChannel)
+			close(responseChannel)
 
-            resContent := res.GetContent()
-            resContentType := res.GetContentType()
+			resContent := res.GetContent()
+			resContentType := res.GetContentType()
 
-            if err != nil {
-                log.Error("Error encoding response content: '%s'", err.Error())
-                return
-            }
+			if err != nil {
+				log.Error("Error encoding response content: '%s'", err.Error())
+				return
+			}
 
-            log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
+			log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
 
-            err = s.channel.Publish(
-                "",
-                d.ReplyTo,
-                false,
-                false,
-                amqp.Publishing{
-                        ContentType:   resContentType,
-                        CorrelationId: d.CorrelationId,
-                        Body:          resContent,
-            })
+			err = s.channel.Publish(
+				"",
+				d.ReplyTo,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType:   resContentType,
+					CorrelationId: d.CorrelationId,
+					Body:          resContent,
+				})
 
-            if err != nil {
-                log.Error("Publish Error: '%s'", err.Error())
-                return
-            } else {
-                if !s.autoAck {
-                    d.Ack(false)
-                    log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
-                }
-            }
-        }(d)
-    } else {
-        log.Error("Method '%s' not found.", msg.Method)
-        if !s.autoAck {
-            d.Reject(false)
-        }
-    }
+			if err != nil {
+				log.Error("Publish Error: '%s'", err.Error())
+				return
+			} else {
+				if !s.autoAck {
+					d.Ack(false)
+					log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
+				}
+			}
+		}(d)
+	} else {
+		log.Error("Method '%s' not found.", msg.Method)
+		if !s.autoAck {
+			d.Reject(false)
+		}
+	}
 }
 
 // Register a method and its handler.
 func (s *Server) Register(method string, handler MethodHandler) {
-    s.methods[method] = handler
+	s.methods[method] = handler
 }
 
 // Close the client and AMQP chanel.
 func (s *Server) Close() {
-    s.channel.Close()
+	s.channel.Close()
 }
 
 // ServeForever blocks the current context to serve remote requests forever.
 func (s *Server) ServeForever() {
-    select {}
+	select {}
 }
