@@ -40,7 +40,7 @@ func main() {
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func(idx int) {
-			response := userService.Call("doSomethingThatReturnsValue", idx)
+			response, _ := userService.Call("doSomethingThatReturnsValue", idx)
 			defer response.Dispose()
 
 			select {

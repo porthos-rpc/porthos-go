@@ -25,7 +25,7 @@ calculatorService, _ := client.NewClient(broker, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
-response := calculatorService.Call("addOne", 10)
+response, _ := calculatorService.Call("addOne", 10)
 defer response.Dispose()
 
 select {
