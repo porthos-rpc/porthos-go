@@ -198,23 +198,24 @@ func (s *Server) processRequest(d amqp.Delivery) {
 				log.Error("Error encoding response content: '%s'", err.Error())
 				return
 			}
+			if len(resContent) > 0 {
+				log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
 
-			log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
+				err = s.channel.Publish(
+					"",
+					d.ReplyTo,
+					false,
+					false,
+					amqp.Publishing{
+						ContentType:   resContentType,
+						CorrelationId: d.CorrelationId,
+						Body:          resContent,
+					})
 
-			err = s.channel.Publish(
-				"",
-				d.ReplyTo,
-				false,
-				false,
-				amqp.Publishing{
-					ContentType:   resContentType,
-					CorrelationId: d.CorrelationId,
-					Body:          resContent,
-				})
-
-			if err != nil {
-				log.Error("Publish Error: '%s'", err.Error())
-				return
+				if err != nil {
+					log.Error("Publish Error: '%s'", err.Error())
+					return
+				}
 			}
 
 			if !s.autoAck {
