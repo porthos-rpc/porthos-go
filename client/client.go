@@ -11,6 +11,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Response of a RPC call.
 type Response struct {
 	out    chan []byte
 	closed bool
@@ -30,10 +31,12 @@ func (r *Response) getCorrelationID() string {
 	return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(r))))
 }
 
+// Out returns the response channel.
 func (r *Response) Out() <-chan []byte {
 	return r.out
 }
 
+// Dispose response resources.
 func (r *Response) Dispose() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -119,11 +122,13 @@ func (c *Client) processResponse(d amqp.Delivery) {
 	}()
 }
 
-func (c *Client) Call(method string, args ...interface{}) *Response {
+// Call the remote method with the given arguments.
+// It returns a *Response (which contains the response channel) and any possible error.
+func (c *Client) Call(method string, args ...interface{}) (*Response, error) {
 	body, err := json.Marshal(&message.MessageBody{method, args})
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	res := c.makeNewResponse()
@@ -145,18 +150,18 @@ func (c *Client) Call(method string, args ...interface{}) *Response {
 	log.Info("Published method '%s' in '%s'. Expecting response in queue '%s' and slot '%d'", method, c.serviceName, c.responseQueue.Name, []byte(correlationID))
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return res
+	return res, nil
 }
 
 // CallVoid calls a remote service procedure/service which will not provide any return value.
-func (c *Client) CallVoid(method string, args ...interface{}) {
+func (c *Client) CallVoid(method string, args ...interface{}) error {
 	body, err := json.Marshal(&message.MessageBody{method, args})
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	err = c.channel.Publish(
@@ -170,8 +175,10 @@ func (c *Client) CallVoid(method string, args ...interface{}) {
 		})
 
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 // Close the client and AMQP chanel.
