@@ -198,7 +198,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
 				log.Error("Error encoding response content: '%s'", err.Error())
 				return
 			}
-			if len(resContent) > 0 {
+			if len(d.ReplyTo) > 0 {
 				log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
 
 				err = s.channel.Publish(
