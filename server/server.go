@@ -22,6 +22,13 @@ type Response struct {
 // MethodHandler represents a rpc method handler.
 type MethodHandler func(req Request, res *Response)
 
+// ResponseWriter is responsible for sending back the response to the replyTo queue.
+type ResponseWriter struct {
+	channel  *amqp.Channel
+	autoAck  bool
+	delivery amqp.Delivery
+}
+
 // Broker holds an implementation-specific connection.
 type Broker struct {
 	conn *amqp.Connection
@@ -150,6 +157,35 @@ func (r *Response) GetContentType() string {
 	return r.contentType
 }
 
+func (rw *ResponseWriter) Write(res *Response) error {
+	resContent := res.GetContent()
+	resContentType := res.GetContentType()
+
+	log.Info("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
+
+	err := rw.channel.Publish(
+		"",
+		rw.delivery.ReplyTo,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType:   resContentType,
+			CorrelationId: rw.delivery.CorrelationId,
+			Body:          resContent,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	if !rw.autoAck {
+		rw.delivery.Ack(false)
+		log.Debug("Ack from slot '%d'", []byte(rw.delivery.CorrelationId))
+	}
+
+	return nil
+}
+
 func (s *Server) startWorkers(maxWorkers int) {
 	dispatcher := NewDispatcher(s.jobQueue, maxWorkers)
 	dispatcher.Run()
@@ -174,55 +210,15 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 
 	if method, ok := s.methods[msg.Method]; ok {
-		responseChannel := make(chan *Response)
-
 		req := Request{msg.Args}
 
-		// create the job with arguments and a response channel to post the results.
-		work := Job{Method: method, Request: req, ResponseChannel: responseChannel}
+		resWriter := ResponseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
+
+		// create the job with arguments and a response writer.
+		work := Job{Method: method, Request: req, ResponseWriter: resWriter}
 
 		// queue the job.
 		s.jobQueue <- work
-
-		// wait for the response asynchronously.
-		go func(d amqp.Delivery) {
-			// wait the response
-			res := <-responseChannel
-
-			close(responseChannel)
-
-			resContent := res.GetContent()
-			resContentType := res.GetContentType()
-
-			if err != nil {
-				log.Error("Error encoding response content: '%s'", err.Error())
-				return
-			}
-			if len(d.ReplyTo) > 0 {
-				log.Info("Sending response to queue '%s'. Slot: '%d'", d.ReplyTo, []byte(d.CorrelationId))
-
-				err = s.channel.Publish(
-					"",
-					d.ReplyTo,
-					false,
-					false,
-					amqp.Publishing{
-						ContentType:   resContentType,
-						CorrelationId: d.CorrelationId,
-						Body:          resContent,
-					})
-
-				if err != nil {
-					log.Error("Publish Error: '%s'", err.Error())
-					return
-				}
-			}
-
-			if !s.autoAck {
-				d.Ack(false)
-				log.Debug("Ack method '%s' from slot '%d'", msg.Method, []byte(d.CorrelationId))
-			}
-		}(d)
 	} else {
 		log.Error("Method '%s' not found.", msg.Method)
 		if !s.autoAck {

@@ -1,10 +1,12 @@
 package server
 
+import "github.com/porthos-rpc/porthos-go/log"
+
 // Job represents the job to be run
 type Job struct {
-	Method          MethodHandler
-	Request         Request
-	ResponseChannel chan *Response
+	Method         MethodHandler
+	Request        Request
+	ResponseWriter ResponseWriter
 }
 
 // Worker represents the worker that executes the job
@@ -33,8 +35,11 @@ func (w Worker) Start() {
 				res := &Response{}
 				job.Method(job.Request, res)
 
-				job.ResponseChannel <- res
+				err := job.ResponseWriter.Write(res)
 
+				if err != nil {
+					log.Error("Error writing response: '%s'", err.Error())
+				}
 			case <-w.quit:
 				return
 			}
