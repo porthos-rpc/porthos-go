@@ -15,7 +15,7 @@ func TestDispatcher(t *testing.T) {
 
 	jobQueue <- Job{func(req Request, res *Response) {
 		funcCalled <- true
-	}, Request{}, make(chan *Response)}
+	}, Request{}, ResponseWriter{}}
 
 	select {
 	case <-funcCalled:
@@ -38,7 +38,7 @@ func TestDispatcherNonIdle(t *testing.T) {
 
 	jobQueue <- Job{func(req Request, res *Response) {
 		funcCalled <- true
-	}, Request{}, make(chan *Response)}
+	}, Request{}, ResponseWriter{}}
 
 	select {
 	case <-funcCalled:
@@ -61,7 +61,7 @@ func TestDispatcherTwoWorkers(t *testing.T) {
 
 	jobQueue <- Job{func(req Request, res *Response) {
 		funcCalled <- true
-	}, Request{}, make(chan *Response)}
+	}, Request{}, ResponseWriter{}}
 
 	select {
 	case <-funcCalled:
