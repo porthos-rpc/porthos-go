@@ -41,7 +41,7 @@ func (mc *metricsCollector) reset() {
 }
 
 func (mc *metricsCollector) isFull() bool {
-	return mc.index == len(mc.buffer)-1
+	return mc.index == len(mc.buffer)
 }
 
 func (mc *metricsCollector) ship() {
