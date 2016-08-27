@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/porthos-rpc/porthos-go/log"
 	rpc "github.com/porthos-rpc/porthos-go/server"
 )
 
@@ -11,16 +11,22 @@ func main() {
 	broker, err := rpc.NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
-		fmt.Printf("Error creating broker")
+		log.Error("Error creating broker")
 		panic(err)
 	}
 
 	defer broker.Close()
 
+	// create the RPC server.
 	userService, err := rpc.NewServer(broker, "UserService", rpc.ServerOptions{MaxWorkers: 40, AutoAck: false})
 
+	// create and add the built-in metrics shipper.
+	userService.AddExtension(rpc.NewMetricsShipperExtension(broker, rpc.MetricsShipperConfig{
+		BufferSize: 100,
+	}))
+
 	if err != nil {
-		fmt.Printf("Error creating server")
+		log.Error("Error creating server")
 		panic(err)
 	}
 
@@ -41,6 +47,6 @@ func main() {
 		res.JSON(test{x, x + 1})
 	})
 
-	fmt.Println("RPC server is waiting for incoming requests...")
+	log.Info("RPC server is waiting for incoming requests...")
 	userService.ServeForever()
 }

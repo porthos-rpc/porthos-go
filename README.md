@@ -100,6 +100,16 @@ Then you just have to add the extension to the server:
 userService.AddExtension(NewLoggingExtension())
 ```
 
+#### Built-in extensions
+
+Currently there's only the "Metrics Shipper Extension". You can use it like:
+
+```go
+userService.AddExtension(rpc.NewMetricsShipperExtension(broker, rpc.MetricsShipperConfig{
+	FlushInterval: 30 * time.Second,
+}))
+```
+
 ## Contributing
 
 Pull requests are very much welcomed. Make sure a test or example is included that covers your change.
