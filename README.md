@@ -69,9 +69,46 @@ fmt.Println("RPC server is waiting for incoming requests...")
 calculatorService.ServeForever()
 ```
 
-## Acknowledgements
+### Extensions
 
-A special thanks to my coworker https://github.com/skrater.
+Extensions can be used to add custom actions to the RPC Server. The available "events" are `incoming` and `outgoing`.
+
+```go
+import "github.com/porthos-rpc/porthos-go/server"
+
+func NewLoggingExtension() *Extension {
+	ext := server.NewExtension()
+
+	go func() {
+		for {
+			select {
+			case in := <-ext.Incoming():
+				log.Info("Before executing method: %s", in.Request.MethodName)
+			case out := <-ext.Outgoing():
+				log.Info("After executing method: %s", out.Request.MethodName)
+			}
+		}
+	}()
+
+	return ext
+}
+```
+
+Then you just have to add the extension to the server:
+
+```go
+userService.AddExtension(NewLoggingExtension())
+```
+
+#### Built-in extensions
+
+Currently there's only the "Metrics Shipper Extension". You can use it like:
+
+```go
+userService.AddExtension(rpc.NewMetricsShipperExtension(broker, rpc.MetricsShipperConfig{
+	FlushInterval: 30 * time.Second,
+}))
+```
 
 ## Contributing
 
