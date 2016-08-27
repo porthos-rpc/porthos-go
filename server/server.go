@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/porthos-rpc/porthos-go/message"
@@ -11,7 +12,8 @@ import (
 
 // Request represents a rpc request.
 type Request struct {
-	args []interface{}
+	MethodName string
+	args       []interface{}
 }
 
 // Response represents a rpc response.
@@ -43,6 +45,7 @@ type Server struct {
 	requestChannel <-chan amqp.Delivery
 	methods        map[string]MethodHandler
 	autoAck        bool
+	extensions     []*Extension
 }
 
 // ServerOptions represent all the options supported by the server.
@@ -215,7 +218,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 
 	if method, ok := s.methods[msg.Method]; ok {
-		req := Request{msg.Args}
+		req := Request{msg.Method, msg.Args}
 
 		resWriter := ResponseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
 
@@ -232,9 +235,40 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 }
 
+func (s *Server) pipeThroughIncomingExtensions(req *Request) {
+	for _, ext := range s.extensions {
+		if ext.incoming != nil {
+			ext.incoming <- IncomingRPC{req}
+		}
+	}
+}
+
+func (s *Server) pipeThroughOutgoingExtensions(req *Request, res *Response, responseTime time.Duration) {
+	for _, ext := range s.extensions {
+		if ext.outgoing != nil {
+			ext.outgoing <- OutgoingRPC{req, res, responseTime}
+		}
+	}
+}
+
 // Register a method and its handler.
 func (s *Server) Register(method string, handler MethodHandler) {
-	s.methods[method] = handler
+	s.methods[method] = func(req Request, res *Response) {
+		s.pipeThroughIncomingExtensions(&req)
+
+		started := time.Now()
+
+		// invoke the registered function.
+		handler(req, res)
+
+		s.pipeThroughOutgoingExtensions(&req, res, time.Since(started))
+	}
+}
+
+// AddExtension adds extensions to the server instance.
+// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
+func (s *Server) AddExtension(ext *Extension) {
+	s.extensions = append(s.extensions, ext)
 }
 
 // Close the client and AMQP chanel.
