@@ -22,7 +22,7 @@ func TestNewServer(t *testing.T) {
 		t.Fatal("NewBroker failed.", err)
 	}
 
-	userService, err := NewServer(broker, "UserService", ServerOptions{1, false})
+	userService, err := NewServer(broker, "UserService", Options{1, false})
 	defer userService.Close()
 
 	if err != nil {
@@ -57,7 +57,7 @@ func TestServerProcessRequest(t *testing.T) {
 		t.Fatal("NewBroker failed.", err)
 	}
 
-	userService, err := NewServer(broker, "UserService", ServerOptions{1, false})
+	userService, err := NewServer(broker, "UserService", Options{1, false})
 	defer userService.Close()
 
 	if err != nil {
