@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -40,13 +39,12 @@ func main() {
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func(idx int) {
-			response, _ := userService.Call("doSomethingThatReturnsValue", idx)
-			defer response.Dispose()
+			ret, _ := userService.Call("doSomethingThatReturnsValue", idx)
+			defer ret.Dispose()
 
 			select {
-			case res := <-response.Out():
-				var jsonResponse map[string]interface{}
-				json.Unmarshal(res, &jsonResponse)
+			case response := <-ret.ResponseChannel():
+				jsonResponse, _ := response.UnmarshalJSON()
 
 				fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, jsonResponse["original"], jsonResponse["sum"])
 			case <-time.After(2 * time.Second):

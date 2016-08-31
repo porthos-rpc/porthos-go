@@ -25,13 +25,12 @@ calculatorService, _ := client.NewClient(broker, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
-response, _ := calculatorService.Call("addOne", 10)
-defer response.Dispose()
+ret, _ := calculatorService.Call("addOne", 10)
+defer ret.Dispose()
 
 select {
-case res := <-response.Out():
-    var jsonResponse map[string]interface{}
-    json.Unmarshal(res, &jsonResponse)
+case response := <-ret.ResponseChannel():
+    jsonResponse, _ := response.UnmarshalJSON()
 
     fmt.Printf("Original: %f, sum: %f\n", jsonResponse["original"], jsonResponse["sum"])
 case <-time.After(2 * time.Second):
