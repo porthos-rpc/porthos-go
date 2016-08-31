@@ -68,7 +68,7 @@ func TestServerProcessRequest(t *testing.T) {
 	userService.Register("doSomething", func(req Request, res *Response) {
 		x := req.GetArg(0).AsFloat64()
 
-		res.JSON(ResponseTest{x, x + 1})
+		res.JSON(200, ResponseTest{x, x + 1})
 	})
 
 	// This code below is to simulate the client invoking the remote method.
@@ -120,6 +120,10 @@ func TestServerProcessRequest(t *testing.T) {
 	for {
 		select {
 		case response := <-dc:
+			if response.Headers["statusCode"].(int16) != 200 {
+				t.Errorf("Expected status code was 200, got: %d", response.Headers["statusCode"])
+			}
+
 			var responseTest ResponseTest
 			err = json.Unmarshal(response.Body, &responseTest)
 
