@@ -90,11 +90,13 @@ func (c *Client) processResponse(d amqp.Delivery) {
 	func() {
 		res.mutex.Lock()
 		defer res.mutex.Unlock()
+
 		if !res.closed {
 			res.responseChannel <- Response{
 				Content:     d.Body,
 				ContentType: d.ContentType,
 				StatusCode:  d.Headers["statusCode"].(int16),
+				Headers:     d.Headers,
 			}
 		}
 	}()
