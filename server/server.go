@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/porthos-rpc/porthos-go/log"
@@ -10,27 +9,8 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Request represents a rpc request.
-type Request struct {
-	MethodName string
-	args       []interface{}
-}
-
-// Response represents a rpc response.
-type Response struct {
-	content     []byte
-	contentType string
-}
-
 // MethodHandler represents a rpc method handler.
 type MethodHandler func(req Request, res *Response)
-
-// ResponseWriter is responsible for sending back the response to the replyTo queue.
-type ResponseWriter struct {
-	channel  *amqp.Channel
-	autoAck  bool
-	delivery amqp.Delivery
-}
 
 // Broker holds an implementation-specific connection.
 type Broker struct {
@@ -48,8 +28,8 @@ type Server struct {
 	extensions     []*Extension
 }
 
-// ServerOptions represent all the options supported by the server.
-type ServerOptions struct {
+// Options represent all the options supported by the server.
+type Options struct {
 	MaxWorkers int
 	AutoAck    bool
 }
@@ -66,7 +46,7 @@ func NewBroker(amqpURL string) (*Broker, error) {
 }
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(broker *Broker, serviceName string, options ServerOptions) (*Server, error) {
+func NewServer(broker *Broker, serviceName string, options Options) (*Server, error) {
 	ch, err := broker.conn.Channel()
 
 	if err != nil {
@@ -128,70 +108,6 @@ func NewServer(broker *Broker, serviceName string, options ServerOptions) (*Serv
 // Close the broker connection.
 func (b *Broker) Close() {
 	b.conn.Close()
-}
-
-// GetArg returns an argument giving the index.
-func (r *Request) GetArg(index int) *Argument {
-	return &Argument{r.args[index]}
-}
-
-// JSON sets the content of the method's response.
-func (r *Response) JSON(c interface{}) {
-	if c == nil {
-		panic("Response content is empty")
-	}
-
-	jsonContent, err := json.Marshal(&c)
-
-	if err != nil {
-		panic(err)
-	}
-
-	r.content = jsonContent
-	r.contentType = "application/json"
-}
-
-// GetContent returns the method's response encoded in JSON format.
-func (r *Response) GetContent() []byte {
-	return r.content
-}
-
-// GetContentType returns the method's response encoded in JSON format.
-func (r *Response) GetContentType() string {
-	return r.contentType
-}
-
-func (rw *ResponseWriter) Write(res *Response) error {
-	resContent := res.GetContent()
-	resContentType := res.GetContentType()
-
-	log.Info("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
-
-	if rw.channel == nil {
-		return errors.New("No AMQP channel to publish the response to.")
-	}
-
-	err := rw.channel.Publish(
-		"",
-		rw.delivery.ReplyTo,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType:   resContentType,
-			CorrelationId: rw.delivery.CorrelationId,
-			Body:          resContent,
-		})
-
-	if err != nil {
-		return err
-	}
-
-	if !rw.autoAck {
-		rw.delivery.Ack(false)
-		log.Debug("Ack from slot '%d'", []byte(rw.delivery.CorrelationId))
-	}
-
-	return nil
 }
 
 func (s *Server) startWorkers(maxWorkers int) {

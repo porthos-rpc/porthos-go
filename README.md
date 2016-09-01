@@ -25,13 +25,12 @@ calculatorService, _ := client.NewClient(broker, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
-response, _ := calculatorService.Call("addOne", 10)
-defer response.Dispose()
+ret, _ := calculatorService.Call("addOne", 10)
+defer ret.Dispose()
 
 select {
-case res := <-response.Out():
-    var jsonResponse map[string]interface{}
-    json.Unmarshal(res, &jsonResponse)
+case response := <-ret.ResponseChannel():
+    jsonResponse, _ := response.UnmarshalJSON()
 
     fmt.Printf("Original: %f, sum: %f\n", jsonResponse["original"], jsonResponse["sum"])
 case <-time.After(2 * time.Second):
@@ -44,13 +43,18 @@ case <-time.After(2 * time.Second):
 The server also takes a broker and a `service name`. After that, you `Register` all your handlers and finally `ServeForever`.
 
 ```go
-broker, _ := rpc.NewBroker(os.Getenv("AMQP_URL"))
+import (
+	"github.com/porthos-rpc/porthos-go/server"
+	"github.com/porthos-rpc/porthos-go/status"
+)
+
+broker, _ := server.NewBroker(os.Getenv("AMQP_URL"))
 defer broker.Close()
 
-calculatorService, _ := rpc.NewServer(broker, "CalculatorService", 10, false)
+calculatorService, _ := server.NewServer(broker, "CalculatorService", 10, false)
 defer calculatorService.Close()
 
-calculatorService.Register("addOne", func(req rpc.Request, res *rpc.Response) {
+calculatorService.Register("addOne", func(req server.Request, res *server.Response) {
     type response struct {
         Original    float64 `json:"original"`
         Sum         float64 `json:"sum"`
@@ -58,10 +62,10 @@ calculatorService.Register("addOne", func(req rpc.Request, res *rpc.Response) {
 
     x := req.GetArg(0).AsFloat64()
 
-    res.JSON(response{x, x+1})
+    res.JSON(status.OK, response{x, x+1})
 })
 
-calculatorService.Register("subtract", func(req rpc.Request, res *rpc.Response) {
+calculatorService.Register("subtract", func(req server.Request, res *server.Response) {
     // subtraction logic here...
 })
 
