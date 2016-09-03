@@ -11,12 +11,12 @@ func TestMetricsShipperExtension(t *testing.T) {
 
 	ext := NewMetricsShipperExtension(broker, MetricsShipperConfig{BufferSize: 2})
 
-	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test1"}, &Response{}, 4 * time.Millisecond}
-	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test2"}, &Response{}, 5 * time.Millisecond}
-	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test2"}, &Response{}, 6 * time.Millisecond}
-	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test3"}, &Response{}, 7 * time.Millisecond}
-	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test4"}, &Response{}, 8 * time.Millisecond}
-	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test4"}, &Response{}, 9 * time.Millisecond}
+	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test1"}, &Response{}, 4 * time.Millisecond, 200}
+	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test2"}, &Response{}, 5 * time.Millisecond, 201}
+	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test2"}, &Response{}, 6 * time.Millisecond, 201}
+	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test3"}, &Response{}, 7 * time.Millisecond, 202}
+	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test4"}, &Response{}, 8 * time.Millisecond, 200}
+	ext.outgoing <- OutgoingRPC{&Request{MethodName: "test4"}, &Response{}, 9 * time.Millisecond, 200}
 
 	ch, _ := broker.conn.Channel()
 

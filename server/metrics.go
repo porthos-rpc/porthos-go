@@ -18,6 +18,7 @@ type MetricsShipperConfig struct {
 type metricEntry struct {
 	MethodName   string        `json:"methodName"`
 	ResponseTime time.Duration `json:"responsetime"`
+	StatusCode   int16         `json:"statusCode"`
 }
 
 type metricsCollector struct {
@@ -100,7 +101,7 @@ func NewMetricsShipperExtension(broker *Broker, config MetricsShipperConfig) *Ex
 		for {
 			out := <-ext.Outgoing()
 
-			mc.append(&metricEntry{out.Request.MethodName, out.ResponseTime})
+			mc.append(&metricEntry{out.Request.MethodName, out.ResponseTime, out.StatusCode})
 
 			if mc.isFull() {
 				mc.ship()

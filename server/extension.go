@@ -12,6 +12,7 @@ type OutgoingRPC struct {
 	Request      *Request
 	Response     *Response
 	ResponseTime time.Duration
+	StatusCode   int16
 }
 
 // Extension of a porthos server.
