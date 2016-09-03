@@ -134,7 +134,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 
 	if method, ok := s.methods[msg.Method]; ok {
-		req := Request{msg.Method, msg.Args}
+		req := Request{msg.Method, msg.Args, d.Body}
 
 		resWriter := ResponseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
 

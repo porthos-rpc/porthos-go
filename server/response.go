@@ -69,7 +69,7 @@ func (r *Response) Headers() *Headers {
 }
 
 func (rw *ResponseWriter) Write(res *Response) error {
-	log.Info("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
+	log.Debug("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
 
 	if rw.channel == nil {
 		return errors.New("No AMQP channel to publish the response to.")

@@ -2,8 +2,9 @@ package server
 
 // Request represents a rpc request.
 type Request struct {
-	MethodName string
-	args       []interface{}
+	MethodName  string
+	args        []interface{}
+	messageBody []byte
 }
 
 // GetArg returns an argument giving the index.
