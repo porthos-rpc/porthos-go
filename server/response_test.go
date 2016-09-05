@@ -19,7 +19,7 @@ func TestResponseWriterJSON(t *testing.T) {
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
-	response := Response{}
+	response := NewResponse()
 	response.JSON(200, ResponseExample{Sum: 10})
 
 	rw := ResponseWriter{
@@ -31,7 +31,7 @@ func TestResponseWriterJSON(t *testing.T) {
 		},
 	}
 
-	rw.Write(&response)
+	rw.Write(response)
 
 	select {
 	case response := <-dc:
@@ -62,7 +62,7 @@ func TestResponseWriterRaw(t *testing.T) {
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
-	response := Response{}
+	response := NewResponse()
 	response.Raw(201, "text/plain", []byte("Some Response Text"))
 
 	rw := ResponseWriter{
@@ -74,7 +74,7 @@ func TestResponseWriterRaw(t *testing.T) {
 		},
 	}
 
-	rw.Write(&response)
+	rw.Write(response)
 
 	select {
 	case response := <-dc:
@@ -102,7 +102,7 @@ func TestResponseWriterEmpty(t *testing.T) {
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
-	response := Response{}
+	response := NewResponse()
 	response.Empty(202)
 
 	rw := ResponseWriter{
@@ -114,7 +114,7 @@ func TestResponseWriterEmpty(t *testing.T) {
 		},
 	}
 
-	rw.Write(&response)
+	rw.Write(response)
 
 	select {
 	case response := <-dc:

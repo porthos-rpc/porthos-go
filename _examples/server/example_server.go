@@ -26,6 +26,9 @@ func main() {
 		BufferSize: 100,
 	}))
 
+	// create and add the access log extension.
+	userService.AddExtension(server.NewAccessLogExtension())
+
 	if err != nil {
 		log.Error("Error creating server")
 		panic(err)

@@ -13,6 +13,7 @@ type Response struct {
 	content     []byte
 	contentType string
 	statusCode  int16
+	headers     *Headers
 }
 
 // ResponseWriter is responsible for sending back the response to the replyTo queue.
@@ -20,6 +21,13 @@ type ResponseWriter struct {
 	channel  *amqp.Channel
 	autoAck  bool
 	delivery amqp.Delivery
+}
+
+// NewResponse creates a new response object.
+func NewResponse() *Response {
+	return &Response{
+		headers: NewHeaders(),
+	}
 }
 
 // JSON sets the content of the response as JSON data.
@@ -55,13 +63,20 @@ func (r *Response) Empty(statusCode int16) {
 	r.statusCode = statusCode
 }
 
-// Write the response back to the ReplyTo queue.
+// Headers return the response headers.
+func (r *Response) Headers() *Headers {
+	return r.headers
+}
+
 func (rw *ResponseWriter) Write(res *Response) error {
-	log.Info("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
+	log.Debug("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
 
 	if rw.channel == nil {
 		return errors.New("No AMQP channel to publish the response to.")
 	}
+
+	// status code is a header as well.
+	res.headers.Set("statusCode", res.statusCode)
 
 	err := rw.channel.Publish(
 		"",
@@ -69,9 +84,7 @@ func (rw *ResponseWriter) Write(res *Response) error {
 		false,
 		false,
 		amqp.Publishing{
-			Headers: amqp.Table{
-				"statusCode": res.statusCode,
-			},
+			Headers:       res.headers.asMap(),
 			ContentType:   res.contentType,
 			CorrelationId: rw.delivery.CorrelationId,
 			Body:          res.content,

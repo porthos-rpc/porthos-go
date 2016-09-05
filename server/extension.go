@@ -12,6 +12,7 @@ type OutgoingRPC struct {
 	Request      *Request
 	Response     *Response
 	ResponseTime time.Duration
+	StatusCode   int16
 }
 
 // Extension of a porthos server.
@@ -29,14 +30,14 @@ func NewExtension() *Extension {
 	}
 }
 
-// NewIncomingExtension creates a incoming-only extension.
+// NewIncomingOnlyExtension creates a incoming-only extension.
 func NewIncomingOnlyExtension() *Extension {
 	return &Extension{
 		incoming: make(chan IncomingRPC),
 	}
 }
 
-// NewOutgoingExtension creates a outgoing-only extension.
+// NewOutgoingOnlyExtension creates a outgoing-only extension.
 func NewOutgoingOnlyExtension() *Extension {
 	return &Extension{
 		outgoing: make(chan OutgoingRPC),

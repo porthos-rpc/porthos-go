@@ -106,12 +106,20 @@ userService.AddExtension(NewLoggingExtension())
 
 #### Built-in extensions
 
-Currently there's only the "Metrics Shipper Extension". You can use it like:
+##### Metrics Shipper Extension
+
+This extension will ship metrics to the AMQP broker, any application can consume and display them as needed.
 
 ```go
 userService.AddExtension(rpc.NewMetricsShipperExtension(broker, rpc.MetricsShipperConfig{
-	FlushInterval: 30 * time.Second,
+	BufferSize: 150,
 }))
+```
+
+##### Access Log Extension
+
+```go
+userService.AddExtension(NewAccessLogExtension())
 ```
 
 ## Contributing
