@@ -4,6 +4,8 @@ A RPC library for the Go programming language that operates over AMQP.
 
 ## Status
 
+[![Build Status](https://travis-ci.org/porthos-rpc/porthos-go.svg?branch=master)](https://travis-ci.org/porthos-rpc/porthos-go)
+
 Beta. Server and Client API may change a bit.
 
 ## Goal
