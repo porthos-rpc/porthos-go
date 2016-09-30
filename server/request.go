@@ -2,6 +2,7 @@ package server
 
 // Request represents a rpc request.
 type Request struct {
+	ServiceName string
 	MethodName  string
 	args        []interface{}
 	messageBody []byte
