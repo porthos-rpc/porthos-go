@@ -1,10 +1,8 @@
-# Porthos
+# Porthos [![GoDoc](https://godoc.org/github.com/porthos-rpc/porthos-go?status.svg)](http://godoc.org/github.com/porthos-rpc/porthos-go) [![Build Status](https://travis-ci.org/porthos-rpc/porthos-go.svg?branch=master)](https://travis-ci.org/porthos-rpc/porthos-go) [![License](https://img.shields.io/github/license/porthos-rpc/porthos-go.svg?maxAge=2592000)]()
 
 A RPC library for the Go programming language that operates over AMQP.
 
 ## Status
-
-[![Build Status](https://travis-ci.org/porthos-rpc/porthos-go.svg?branch=master)](https://travis-ci.org/porthos-rpc/porthos-go)
 
 Beta. Server and Client API may change a bit.
 
@@ -46,8 +44,8 @@ The server also takes a broker and a `service name`. After that, you `Register` 
 
 ```go
 import (
-	"github.com/porthos-rpc/porthos-go/server"
-	"github.com/porthos-rpc/porthos-go/status"
+    "github.com/porthos-rpc/porthos-go/server"
+    "github.com/porthos-rpc/porthos-go/status"
 )
 
 broker, _ := server.NewBroker(os.Getenv("AMQP_URL"))
@@ -75,7 +73,7 @@ fmt.Println("RPC server is waiting for incoming requests...")
 calculatorService.ServeForever()
 ```
 
-### Extensions
+## Extensions
 
 Extensions can be used to add custom actions to the RPC Server. The available "events" are `incoming` and `outgoing`.
 
@@ -83,20 +81,20 @@ Extensions can be used to add custom actions to the RPC Server. The available "e
 import "github.com/porthos-rpc/porthos-go/server"
 
 func NewLoggingExtension() *Extension {
-	ext := server.NewExtension()
+    ext := server.NewExtension()
 
-	go func() {
-		for {
-			select {
-			case in := <-ext.Incoming():
-				log.Info("Before executing method: %s", in.Request.MethodName)
-			case out := <-ext.Outgoing():
-				log.Info("After executing method: %s", out.Request.MethodName)
-			}
-		}
-	}()
+    go func() {
+        for {
+            select {
+            case in := <-ext.Incoming():
+                log.Info("Before executing method: %s", in.Request.MethodName)
+            case out := <-ext.Outgoing():
+                log.Info("After executing method: %s", out.Request.MethodName)
+            }
+        }
+    }()
 
-	return ext
+    return ext
 }
 ```
 
@@ -106,19 +104,19 @@ Then you just have to add the extension to the server:
 userService.AddExtension(NewLoggingExtension())
 ```
 
-#### Built-in extensions
+### Built-in extensions
 
-##### Metrics Shipper Extension
+#### Metrics Shipper Extension
 
 This extension will ship metrics to the AMQP broker, any application can consume and display them as needed.
 
 ```go
 userService.AddExtension(rpc.NewMetricsShipperExtension(broker, rpc.MetricsShipperConfig{
-	BufferSize: 150,
+    BufferSize: 150,
 }))
 ```
 
-##### Access Log Extension
+#### Access Log Extension
 
 ```go
 userService.AddExtension(NewAccessLogExtension())
