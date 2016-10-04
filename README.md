@@ -1,4 +1,4 @@
-# Porthos [![GoDoc](https://godoc.org/github.com/porthos-rpc/porthos-go?status.svg)](http://godoc.org/github.com/porthos-rpc/porthos-go) [![Build Status](https://travis-ci.org/porthos-rpc/porthos-go.svg?branch=master)](https://travis-ci.org/porthos-rpc/porthos-go) [![License](https://img.shields.io/github/license/porthos-rpc/porthos-go.svg?maxAge=2592000)]()
+# Porthos [![GoDoc](https://godoc.org/github.com/porthos-rpc/porthos-go?status.svg)](http://godoc.org/github.com/porthos-rpc/porthos-go) [![Build Status](https://travis-ci.org/porthos-rpc/porthos-go.svg?branch=master)](https://travis-ci.org/porthos-rpc/porthos-go) [![Go Report Card](https://goreportcard.com/badge/github.com/porthos-rpc/porthos-go)](https://goreportcard.com/report/github.com/porthos-rpc/porthos-go) [![License](https://img.shields.io/github/license/porthos-rpc/porthos-go.svg?maxAge=2592000)]()
 
 A RPC library for the Go programming language that operates over AMQP.
 
