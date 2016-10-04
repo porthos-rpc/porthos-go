@@ -123,6 +123,7 @@ userService.AddExtension(NewAccessLogExtension())
 ```
 
 ## Contributing
+Please read the [contributing guide](CONTRIBUTING.md)
 
 Pull requests are very much welcomed. Make sure a test or example is included that covers your change.
 
