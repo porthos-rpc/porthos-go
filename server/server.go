@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/porthos-rpc/porthos-go/message"
 	"github.com/streadway/amqp"
@@ -11,11 +12,6 @@ import (
 
 // MethodHandler represents a rpc method handler.
 type MethodHandler func(req Request, res *Response)
-
-// Broker holds an implementation-specific connection.
-type Broker struct {
-	conn *amqp.Connection
-}
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
@@ -34,23 +30,12 @@ type Options struct {
 	AutoAck    bool
 }
 
-// NewBroker creates a new instance of AMQP connection.
-func NewBroker(amqpURL string) (*Broker, error) {
-	conn, err := amqp.Dial(amqpURL)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &Broker{conn}, nil
-}
-
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(broker *Broker, serviceName string, options Options) (*Server, error) {
-	ch, err := broker.conn.Channel()
+func NewServer(b *broker.Broker, serviceName string, options Options) (*Server, error) {
+	ch, err := b.Conn.Channel()
 
 	if err != nil {
-		broker.conn.Close()
+		b.Conn.Close()
 		return nil, err
 	}
 
@@ -103,11 +88,6 @@ func NewServer(broker *Broker, serviceName string, options Options) (*Server, er
 	s.start()
 
 	return s, nil
-}
-
-// Close the broker connection.
-func (b *Broker) Close() {
-	b.conn.Close()
 }
 
 func (s *Server) startWorkers(maxWorkers int) {

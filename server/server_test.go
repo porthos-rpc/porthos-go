@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/message"
 	"github.com/streadway/amqp"
 )
@@ -16,7 +17,7 @@ type ResponseTest struct {
 }
 
 func TestNewServer(t *testing.T) {
-	broker, err := NewBroker(os.Getenv("AMQP_URL"))
+	broker, err := broker.NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
 		t.Fatal("NewBroker failed.", err)
@@ -51,13 +52,13 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestServerProcessRequest(t *testing.T) {
-	broker, err := NewBroker(os.Getenv("AMQP_URL"))
+	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
 		t.Fatal("NewBroker failed.", err)
 	}
 
-	userService, err := NewServer(broker, "UserService", Options{1, false})
+	userService, err := NewServer(b, "UserService", Options{1, false})
 	defer userService.Close()
 
 	if err != nil {
