@@ -6,21 +6,22 @@ import (
 	"sync"
 	"time"
 
+	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/client"
 )
 
 func main() {
-	broker, err := client.NewBroker(os.Getenv("AMQP_URL"))
+	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
 		fmt.Printf("Error creating broker")
 		panic(err)
 	}
 
-	defer broker.Close()
+	defer b.Close()
 
 	// create a client with a default timeout of 1 second.
-	userService, err := client.NewClient(broker, "UserService", 1000)
+	userService, err := client.NewClient(b, "UserService", 1000)
 
 	if err != nil {
 		fmt.Printf("Error creating client")

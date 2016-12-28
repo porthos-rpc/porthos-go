@@ -6,6 +6,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/porthos-rpc/porthos-go/message"
 	"github.com/streadway/amqp"
@@ -20,17 +21,12 @@ type Client struct {
 	responseQueue   *amqp.Queue
 }
 
-// NewBroker creates a new instance of AMQP connection.
-func NewBroker(amqpURL string) (*amqp.Connection, error) {
-	return amqp.Dial(amqpURL)
-}
-
 // NewClient creates a new instance of Client, responsible for making remote calls.
-func NewClient(conn *amqp.Connection, serviceName string, defaultTTL int64) (*Client, error) {
-	ch, err := conn.Channel()
+func NewClient(b *broker.Broker, serviceName string, defaultTTL int64) (*Client, error) {
+	ch, err := b.Conn.Channel()
 
 	if err != nil {
-		conn.Close()
+		b.Conn.Close()
 		return nil, err
 	}
 

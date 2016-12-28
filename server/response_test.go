@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/streadway/amqp"
 )
 
@@ -14,8 +15,8 @@ type ResponseExample struct {
 }
 
 func TestResponseWriterJSON(t *testing.T) {
-	broker, _ := NewBroker(os.Getenv("AMQP_URL"))
-	ch, _ := broker.conn.Channel()
+	b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+	ch, _ := b.Conn.Channel()
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
@@ -57,8 +58,8 @@ func TestResponseWriterJSON(t *testing.T) {
 }
 
 func TestResponseWriterRaw(t *testing.T) {
-	broker, _ := NewBroker(os.Getenv("AMQP_URL"))
-	ch, _ := broker.conn.Channel()
+	b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+	ch, _ := b.Conn.Channel()
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
@@ -97,8 +98,8 @@ func TestResponseWriterRaw(t *testing.T) {
 }
 
 func TestResponseWriterEmpty(t *testing.T) {
-	broker, _ := NewBroker(os.Getenv("AMQP_URL"))
-	ch, _ := broker.conn.Channel()
+	b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+	ch, _ := b.Conn.Channel()
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 

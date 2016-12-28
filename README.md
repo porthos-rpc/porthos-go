@@ -17,11 +17,11 @@ The client is very simple. `NewClient` takes a broker, a `service name` and a ti
 
 ```go
 // first of all you need a broker
-broker, _ := client.NewBroker(os.Getenv("AMQP_URL"))
-defer broker.Close()
+b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+defer b.Close()
 
 // then you create a new client (you can have as many clients as you want using the same broker)
-calculatorService, _ := client.NewClient(broker, "CalculatorService", 120)
+calculatorService, _ := client.NewClient(b, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
@@ -43,15 +43,10 @@ case <-time.After(2 * time.Second):
 The server also takes a broker and a `service name`. After that, you `Register` all your handlers and finally `ServeForever`.
 
 ```go
-import (
-    "github.com/porthos-rpc/porthos-go/server"
-    "github.com/porthos-rpc/porthos-go/status"
-)
+b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+defer b.Close()
 
-broker, _ := server.NewBroker(os.Getenv("AMQP_URL"))
-defer broker.Close()
-
-calculatorService, _ := server.NewServer(broker, "CalculatorService", 10, false)
+calculatorService, _ := server.NewServer(b, "CalculatorService", 10, false)
 defer calculatorService.Close()
 
 calculatorService.Register("addOne", func(req server.Request, res *server.Response) {
@@ -70,7 +65,7 @@ calculatorService.Register("subtract", func(req server.Request, res *server.Resp
 })
 
 fmt.Println("RPC server is waiting for incoming requests...")
-calculatorService.ServeForever()
+b.WaitUntilConnectionCloses()
 ```
 
 ## Extensions
