@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"strconv"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/porthos-rpc/porthos-go/broker"
+	"github.com/porthos-rpc/porthos-go/errors"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/porthos-rpc/porthos-go/message"
 	"github.com/streadway/amqp"
@@ -98,7 +100,7 @@ func (c *Client) processResponse(d amqp.Delivery) {
 	}()
 }
 
-// Call the remote method with the given arguments.
+// Call calls the remote method with the given arguments.
 // It returns a *Slot (which contains the response channel) and any possible error.
 func (c *Client) Call(method string, args ...interface{}) (*Slot, error) {
 	body, err := json.Marshal(&message.MessageBody{method, args})
@@ -130,6 +132,25 @@ func (c *Client) Call(method string, args ...interface{}) (*Slot, error) {
 	}
 
 	return res, nil
+}
+
+// CallSync calls the remote method with the given arguments.
+// It returns a Response and any possible error.
+func (c *Client) CallSync(method string, timeout time.Duration, args ...interface{}) (*Response, error) {
+	slot, err := c.Call(method, args...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer slot.Dispose()
+
+	select {
+	case response := <-slot.ResponseChannel():
+		return &response, nil
+	case <-time.After(timeout):
+		return nil, errors.ErrTimedOut
+	}
 }
 
 // CallVoid calls a remote service procedure/service which will not provide any return value.

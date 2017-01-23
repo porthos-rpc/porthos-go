@@ -2,8 +2,8 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 
+	"github.com/porthos-rpc/porthos-go/errors"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
@@ -72,7 +72,7 @@ func (rw *ResponseWriter) Write(res *Response) error {
 	log.Debug("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
 
 	if rw.channel == nil {
-		return errors.New("No AMQP channel to publish the response to.")
+		return errors.ErrNilPublishChannel
 	}
 
 	// status code is a header as well.
