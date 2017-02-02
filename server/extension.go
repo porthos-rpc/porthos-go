@@ -4,13 +4,13 @@ import "time"
 
 // IncomingRPC is an alias of Request.
 type IncomingRPC struct {
-	Request *Request
+	Request Request
 }
 
 // OutgoingRPC contains the Request and the calculated response time.
 type OutgoingRPC struct {
-	Request      *Request
-	Response     *Response
+	Request      Request
+	Response     Response
 	ResponseTime time.Duration
 	StatusCode   int16
 }

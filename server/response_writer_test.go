@@ -20,10 +20,10 @@ func TestResponseWriterJSON(t *testing.T) {
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
-	response := NewResponse()
+	response := newResponse()
 	response.JSON(200, ResponseExample{Sum: 10})
 
-	rw := ResponseWriter{
+	rw := &responseWriter{
 		channel: ch,
 		autoAck: true,
 		delivery: amqp.Delivery{
@@ -63,10 +63,10 @@ func TestResponseWriterRaw(t *testing.T) {
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
-	response := NewResponse()
+	response := newResponse()
 	response.Raw(201, "text/plain", []byte("Some Response Text"))
 
-	rw := ResponseWriter{
+	rw := &responseWriter{
 		channel: ch,
 		autoAck: true,
 		delivery: amqp.Delivery{
@@ -103,10 +103,10 @@ func TestResponseWriterEmpty(t *testing.T) {
 	q, _ := ch.QueueDeclare("", false, false, true, false, nil)
 	dc, _ := ch.Consume(q.Name, "", true, false, false, false, nil)
 
-	response := NewResponse()
+	response := newResponse()
 	response.Empty(202)
 
-	rw := ResponseWriter{
+	rw := &responseWriter{
 		channel: ch,
 		autoAck: true,
 		delivery: amqp.Delivery{
