@@ -9,7 +9,7 @@ type Request interface {
 	// GetRawArgs returns all arguments.
 	GetRawArgs() []interface{}
 	// GetArg returns an argument giving the index.
-	GetArg(index int) *Argument
+	GetArg(index int) Argument
 }
 
 type request struct {
@@ -30,6 +30,6 @@ func (r *request) GetRawArgs() []interface{} {
 	return r.args
 }
 
-func (r *request) GetArg(index int) *Argument {
-	return &Argument{r.args[index]}
+func (r *request) GetArg(index int) Argument {
+	return &argument{r.args[index]}
 }
