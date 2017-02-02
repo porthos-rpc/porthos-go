@@ -32,7 +32,7 @@ func (w Worker) Start() {
 
 			select {
 			case job := <-w.JobChannel:
-				res := NewResponse()
+				res := newResponse()
 				job.Method(job.Request, res)
 
 				err := job.ResponseWriter.Write(res)

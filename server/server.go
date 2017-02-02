@@ -11,7 +11,7 @@ import (
 )
 
 // MethodHandler represents a rpc method handler.
-type MethodHandler func(req Request, res *Response)
+type MethodHandler func(req Request, res Response)
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
@@ -114,9 +114,9 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 
 	if method, ok := s.methods[msg.Method]; ok {
-		req := Request{s.serviceName, msg.Method, msg.Args, d.Body}
+		req := &request{s.serviceName, msg.Method, msg.Args}
 
-		resWriter := ResponseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
+		resWriter := &responseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
 
 		// create the job with arguments and a response writer.
 		work := Job{Method: method, Request: req, ResponseWriter: resWriter}
@@ -131,7 +131,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 }
 
-func (s *Server) pipeThroughIncomingExtensions(req *Request) {
+func (s *Server) pipeThroughIncomingExtensions(req Request) {
 	for _, ext := range s.extensions {
 		if ext.incoming != nil {
 			ext.incoming <- IncomingRPC{req}
@@ -139,25 +139,25 @@ func (s *Server) pipeThroughIncomingExtensions(req *Request) {
 	}
 }
 
-func (s *Server) pipeThroughOutgoingExtensions(req *Request, res *Response, responseTime time.Duration) {
+func (s *Server) pipeThroughOutgoingExtensions(req Request, res Response, responseTime time.Duration) {
 	for _, ext := range s.extensions {
 		if ext.outgoing != nil {
-			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.statusCode}
+			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.StatusCode()}
 		}
 	}
 }
 
 // Register a method and its handler.
 func (s *Server) Register(method string, handler MethodHandler) {
-	s.methods[method] = func(req Request, res *Response) {
-		s.pipeThroughIncomingExtensions(&req)
+	s.methods[method] = func(req Request, res Response) {
+		s.pipeThroughIncomingExtensions(req)
 
 		started := time.Now()
 
 		// invoke the registered function.
 		handler(req, res)
 
-		s.pipeThroughOutgoingExtensions(&req, res, time.Since(started))
+		s.pipeThroughOutgoingExtensions(req, res, time.Since(started))
 	}
 }
 

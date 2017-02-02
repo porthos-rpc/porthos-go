@@ -2,36 +2,38 @@ package server
 
 import (
 	"encoding/json"
-
-	"github.com/porthos-rpc/porthos-go/errors"
-	"github.com/porthos-rpc/porthos-go/log"
-	"github.com/streadway/amqp"
 )
 
 // Response represents a rpc response.
-type Response struct {
+type Response interface {
+	// JSON sets the content of the response as JSON data.
+	JSON(statusCode int16, content interface{})
+	// Raw sets the content of the response as an array of bytes.
+	Raw(statusCode int16, contentType string, content []byte)
+	// Empty leaves the content of the response as empty.
+	Empty(statusCode int16)
+	// Headers returns the response headers.
+	Headers() *Headers
+	// StatusCode returns the response status.
+	StatusCode() int16
+	Body() []byte
+	ContentType() string
+}
+
+type response struct {
 	content     []byte
 	contentType string
 	statusCode  int16
 	headers     *Headers
 }
 
-// ResponseWriter is responsible for sending back the response to the replyTo queue.
-type ResponseWriter struct {
-	channel  *amqp.Channel
-	autoAck  bool
-	delivery amqp.Delivery
-}
-
-// NewResponse creates a new response object.
-func NewResponse() *Response {
-	return &Response{
+func newResponse() Response {
+	return &response{
 		headers: NewHeaders(),
 	}
 }
 
-// JSON sets the content of the response as JSON data.
-func (r *Response) JSON(statusCode int16, content interface{}) {
+func (r *response) JSON(statusCode int16, content interface{}) {
 	if content == nil {
 		panic("Response content is empty")
 	}
@@ -47,8 +49,7 @@ func (r *Response) JSON(statusCode int16, content interface{}) {
 	r.contentType = "application/json"
 }
 
-// Raw sets the content of the response as an array of bytes.
-func (r *Response) Raw(statusCode int16, contentType string, content []byte) {
+func (r *response) Raw(statusCode int16, contentType string, content []byte) {
 	if content == nil {
 		panic("Response content is empty")
 	}
@@ -58,46 +59,22 @@ func (r *Response) Raw(statusCode int16, contentType string, content []byte) {
 	r.contentType = contentType
 }
 
-// Empty leaves the content of the response as empty.
-func (r *Response) Empty(statusCode int16) {
+func (r *response) Empty(statusCode int16) {
 	r.statusCode = statusCode
 }
 
-// Headers return the response headers.
-func (r *Response) Headers() *Headers {
+func (r *response) Headers() *Headers {
 	return r.headers
 }
 
-func (rw *ResponseWriter) Write(res *Response) error {
-	log.Debug("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
+func (r *response) StatusCode() int16 {
+	return r.statusCode
+}
 
-	if rw.channel == nil {
-		return errors.ErrNilPublishChannel
-	}
+func (r *response) Body() []byte {
+	return r.content
+}
 
-	// status code is a header as well.
-	res.headers.Set("statusCode", res.statusCode)
-
-	err := rw.channel.Publish(
-		"",
-		rw.delivery.ReplyTo,
-		false,
-		false,
-		amqp.Publishing{
-			Headers:       res.headers.asMap(),
-			ContentType:   res.contentType,
-			CorrelationId: rw.delivery.CorrelationId,
-			Body:          res.content,
-		})
-
-	if err != nil {
-		return err
-	}
-
-	if !rw.autoAck {
-		rw.delivery.Ack(false)
-		log.Debug("Ack from slot '%d'", []byte(rw.delivery.CorrelationId))
-	}
-
-	return nil
+func (r *response) ContentType() string {
+	return r.contentType
 }
