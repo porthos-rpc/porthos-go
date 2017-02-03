@@ -142,7 +142,7 @@ func (s *Server) pipeThroughIncomingExtensions(req Request) {
 func (s *Server) pipeThroughOutgoingExtensions(req Request, res Response, responseTime time.Duration) {
 	for _, ext := range s.extensions {
 		if ext.outgoing != nil {
-			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.StatusCode()}
+			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.GetStatusCode()}
 		}
 	}
 }
