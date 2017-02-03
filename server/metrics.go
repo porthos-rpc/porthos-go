@@ -103,7 +103,7 @@ func NewMetricsShipperExtension(b *broker.Broker, config MetricsShipperConfig) *
 		for {
 			out := <-ext.Outgoing()
 
-			mc.append(&metricEntry{out.Request.ServiceName(), out.Request.MethodName(), out.ResponseTime, out.StatusCode})
+			mc.append(&metricEntry{out.Request.GetServiceName(), out.Request.GetMethodName(), out.ResponseTime, out.StatusCode})
 
 			if mc.isFull() {
 				mc.ship()

@@ -2,10 +2,10 @@ package server
 
 // Request represents a rpc request.
 type Request interface {
-	// ServiceName returns the service name.
-	ServiceName() string
-	// MethodName returns the method name.
-	MethodName() string
+	// GetServiceName returns the service name.
+	GetServiceName() string
+	// GetMethodName returns the method name.
+	GetMethodName() string
 	// GetRawArgs returns all arguments.
 	GetRawArgs() []interface{}
 	// GetArg returns an argument giving the index.
@@ -18,11 +18,11 @@ type request struct {
 	args        []interface{}
 }
 
-func (r *request) ServiceName() string {
+func (r *request) GetServiceName() string {
 	return r.serviceName
 }
 
-func (r *request) MethodName() string {
+func (r *request) GetMethodName() string {
 	return r.methodName
 }
 

@@ -25,7 +25,7 @@ func (rw *responseWriter) Write(res Response) error {
 	}
 
 	// status code is a header as well.
-	res.Headers().Set("statusCode", res.StatusCode())
+	res.GetHeaders().Set("statusCode", res.GetStatusCode())
 
 	err := rw.channel.Publish(
 		"",
@@ -33,10 +33,10 @@ func (rw *responseWriter) Write(res Response) error {
 		false,
 		false,
 		amqp.Publishing{
-			Headers:       res.Headers().asMap(),
-			ContentType:   res.ContentType(),
+			Headers:       res.GetHeaders().asMap(),
+			ContentType:   res.GetContentType(),
 			CorrelationId: rw.delivery.CorrelationId,
-			Body:          res.Body(),
+			Body:          res.GetBody(),
 		})
 
 	if err != nil {
