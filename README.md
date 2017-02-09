@@ -55,7 +55,7 @@ calculatorService.Register("addOne", func(req server.Request, res *server.Respon
         Sum         float64 `json:"sum"`
     }
 
-    x := req.GetArg(0).AsFloat64()
+    x, _ := req.GetArg(0).AsFloat64()
 
     res.JSON(status.OK, response{x, x+1})
 })
@@ -63,6 +63,8 @@ calculatorService.Register("addOne", func(req server.Request, res *server.Respon
 calculatorService.Register("subtract", func(req server.Request, res *server.Response) {
     // subtraction logic here...
 })
+
+calculatorService.Start()
 
 fmt.Println("RPC server is waiting for incoming requests...")
 b.WaitUntilConnectionCloses()

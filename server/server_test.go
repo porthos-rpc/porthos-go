@@ -67,10 +67,12 @@ func TestServerProcessRequest(t *testing.T) {
 
 	// register the method that we will test.
 	userService.Register("doSomething", func(req Request, res Response) {
-		x := req.GetArg(0).AsFloat64()
+		x, _ := req.GetArg(0).AsFloat64()
 
 		res.JSON(200, ResponseTest{x, x + 1})
 	})
+
+	userService.Start()
 
 	// This code below is to simulate the client invoking the remote method.
 
