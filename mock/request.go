@@ -31,5 +31,5 @@ func (r *Request) GetRawArgs() []interface{} {
 }
 
 func (r *Request) GetArg(index int) server.Argument {
-	return &Argument{r.Args[index]}
+	return server.NewArgument(r.Args[index])
 }

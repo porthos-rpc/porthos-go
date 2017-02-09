@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"time"
 
@@ -105,7 +106,10 @@ func (s *Server) start() {
 func (s *Server) processRequest(d amqp.Delivery) {
 	msg := new(message.MessageBody)
 
-	err := json.Unmarshal(d.Body, msg)
+	decoder := json.NewDecoder(bytes.NewReader(d.Body))
+	decoder.UseNumber()
+
+	err := decoder.Decode(msg)
 
 	if err != nil {
 		log.Error("Unmarshal error: %s", err.Error())

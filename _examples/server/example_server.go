@@ -47,7 +47,7 @@ func main() {
 			Sum      float64 `json:"sum"`
 		}
 
-		x := req.GetArg(0).AsFloat64()
+		x, _ := req.GetArg(0).AsFloat64()
 
 		res.JSON(status.OK, test{x, x + 1})
 	})
