@@ -37,11 +37,11 @@ func main() {
 
 	defer userService.Close()
 
-	userService.Register("doSomething", func(req server.Request, res *server.Response) {
+	userService.Register("doSomething", func(req server.Request, res server.Response) {
 		// nothing to do yet.
 	})
 
-	userService.Register("doSomethingThatReturnsValue", func(req server.Request, res *server.Response) {
+	userService.Register("doSomethingThatReturnsValue", func(req server.Request, res server.Response) {
 		type test struct {
 			Original float64 `json:"original"`
 			Sum      float64 `json:"sum"`
@@ -51,6 +51,8 @@ func main() {
 
 		res.JSON(status.OK, test{x, x + 1})
 	})
+
+	userService.Start()
 
 	log.Info("RPC server is waiting for incoming requests...")
 	b.WaitUntilConnectionCloses()

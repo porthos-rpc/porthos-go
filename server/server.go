@@ -22,6 +22,7 @@ type Server struct {
 	methods        map[string]MethodHandler
 	autoAck        bool
 	extensions     []*Extension
+	maxWorkers     int
 }
 
 // Options represent all the options supported by the server.
@@ -82,10 +83,8 @@ func NewServer(b *broker.Broker, serviceName string, options Options) (*Server, 
 		methods:        make(map[string]MethodHandler),
 		jobQueue:       make(chan Job, maxWorkers),
 		autoAck:        options.AutoAck,
+		maxWorkers:     maxWorkers,
 	}
-
-	s.startWorkers(maxWorkers)
-	s.start()
 
 	return s, nil
 }
@@ -167,12 +166,13 @@ func (s *Server) AddExtension(ext *Extension) {
 	s.extensions = append(s.extensions, ext)
 }
 
+// Start serving RPC requests.
+func (s *Server) Start() {
+	s.startWorkers(s.maxWorkers)
+	s.start()
+}
+
 // Close the client and AMQP chanel.
 func (s *Server) Close() {
 	s.channel.Close()
-}
-
-// ServeForever blocks the current context to serve remote requests forever.
-func (s *Server) ServeForever() {
-	select {}
 }

@@ -72,6 +72,8 @@ func TestServerProcessRequest(t *testing.T) {
 		res.JSON(200, ResponseTest{x, x + 1})
 	})
 
+	userService.Start()
+
 	// This code below is to simulate the client invoking the remote method.
 
 	// create the request message body.
