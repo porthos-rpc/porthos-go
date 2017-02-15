@@ -71,7 +71,7 @@ func (c *call) Async() (*Slot, error) {
 			Headers: amqp.Table{
 				"X-Method": c.method,
 			},
-			Expiration:    strconv.FormatInt(c.getTimeoutInt64(), 10),
+			Expiration:    strconv.FormatInt(c.getTimeoutMilliseconds(), 10),
 			ContentType:   c.contentType,
 			CorrelationId: correlationID,
 			ReplyTo:       c.client.responseQueue.Name,
@@ -136,7 +136,7 @@ func (c *call) getTimeout() time.Duration {
 	return c.client.defaultTTL
 }
 
-func (c *call) getTimeoutInt64() int64 {
+func (c *call) getTimeoutMilliseconds() int64 {
 	t := c.client.defaultTTL
 
 	if c.timeout > 0 {
