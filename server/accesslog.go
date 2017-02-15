@@ -13,7 +13,7 @@ func NewAccessLogExtension() *Extension {
 			out := <-ext.Outgoing()
 
 			log.Info("Method [%s] Arguments [%s] Status Code [%d] Response Time [%fms]",
-				out.Request.GetMethodName(), out.Request.GetRawArgs(), out.Response.GetStatusCode(), out.ResponseTime.Seconds()*1000)
+				out.Request.GetMethodName(), string(out.Request.GetBody()), out.Response.GetStatusCode(), out.ResponseTime.Seconds()*1000)
 		}
 	}()
 

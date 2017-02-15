@@ -1,4 +1,4 @@
-package message
+package client
 
 import (
 	"encoding/binary"
@@ -6,11 +6,7 @@ import (
 	"unsafe"
 )
 
-type MessageBody struct {
-	Method string        `json:"method"`
-	Args   []interface{} `json:"args"`
-}
-
+// UintptrToBytes converts a pointer to a bytes array.
 func UintptrToBytes(value uintptr) []byte {
 	size := unsafe.Sizeof(value)
 	b := make([]byte, size)
@@ -25,6 +21,7 @@ func UintptrToBytes(value uintptr) []byte {
 	return b
 }
 
+// BytesToUintptr converts a bytes array to a pointer.
 func BytesToUintptr(bytes []byte) uintptr {
 	var intptr uintptr
 	size := unsafe.Sizeof(intptr)

@@ -3,8 +3,6 @@ package client
 import (
 	"sync"
 	"unsafe"
-
-	"github.com/porthos-rpc/porthos-go/message"
 )
 
 // Slot of a RPC call.
@@ -15,7 +13,7 @@ type Slot struct {
 }
 
 func (r *Slot) getCorrelationID() string {
-	return string(message.UintptrToBytes((uintptr)(unsafe.Pointer(r))))
+	return string(UintptrToBytes((uintptr)(unsafe.Pointer(r))))
 }
 
 // ResponseChannel returns the response channel.

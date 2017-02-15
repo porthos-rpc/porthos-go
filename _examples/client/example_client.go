@@ -21,7 +21,7 @@ func main() {
 	defer b.Close()
 
 	// create a client with a default timeout of 1 second.
-	userService, err := client.NewClient(b, "UserService", 1000)
+	userService, err := client.NewClient(b, "UserService", 1*time.Second)
 
 	if err != nil {
 		fmt.Printf("Error creating client")
@@ -31,8 +31,13 @@ func main() {
 	defer userService.Close()
 
 	// call a remote method that is "void".
-	userService.CallVoid("doSomething", 20)
+	userService.Call("doSomething").WithArgs(20).Void()
 	fmt.Println("Service userService.doSomething invoked")
+
+	// call a remote method that returns the value right away.
+	response, _ := userService.Call("doSomethingThatReturnsValue").WithArgs(20).Sync()
+	jsonResponse, _ := response.UnmarshalJSON()
+	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["sum"])
 
 	var wg sync.WaitGroup
 
@@ -40,7 +45,7 @@ func main() {
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func(idx int) {
-			ret, _ := userService.Call("doSomethingThatReturnsValue", idx)
+			ret, _ := userService.Call("doSomethingThatReturnsValue").WithArgs(idx).Async()
 			defer ret.Dispose()
 
 			select {
@@ -57,4 +62,10 @@ func main() {
 
 	// wait (to give time to execute all goroutines)
 	wg.Wait()
+
+	// call a remote method that returns the value right away.
+	response, _ = userService.Call("doSomethingElse").WithMap(client.Map{"someField": 10.5}).Sync()
+	jsonResponse, _ = response.UnmarshalJSON()
+	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["sum"])
+
 }

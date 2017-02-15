@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/porthos-rpc/porthos-go/broker"
-	"github.com/porthos-rpc/porthos-go/message"
 	"github.com/streadway/amqp"
 )
 
@@ -67,7 +66,8 @@ func TestServerProcessRequest(t *testing.T) {
 
 	// register the method that we will test.
 	userService.Register("doSomething", func(req Request, res Response) {
-		x, _ := req.GetArg(0).AsFloat64()
+		form, _ := req.IndexForm()
+		x, _ := form.GetArg(0).AsFloat64()
 
 		res.JSON(200, ResponseTest{x, x + 1})
 	})
@@ -77,7 +77,7 @@ func TestServerProcessRequest(t *testing.T) {
 	// This code below is to simulate the client invoking the remote method.
 
 	// create the request message body.
-	body, _ := json.Marshal(&message.MessageBody{"doSomething", []interface{}{10}})
+	body, _ := json.Marshal([]interface{}{10})
 
 	// declare the response queue.
 	q, err := userService.channel.QueueDeclare("", false, false, true, false, nil)
@@ -108,8 +108,11 @@ func TestServerProcessRequest(t *testing.T) {
 		false,
 		false,
 		amqp.Publishing{
+			Headers: amqp.Table{
+				"X-Method": "doSomething",
+			},
 			Expiration:    "3000",
-			ContentType:   "application/json",
+			ContentType:   "application/porthos-args",
 			CorrelationId: "1",
 			ReplyTo:       q.Name,
 			Body:          body,

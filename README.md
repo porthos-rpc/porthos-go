@@ -25,7 +25,7 @@ calculatorService, _ := client.NewClient(b, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
-ret, _ := calculatorService.Call("addOne", 10)
+ret, _ := calculatorService.Call("addOne").WithArgs(10).Async()
 defer ret.Dispose()
 
 select {
@@ -55,7 +55,8 @@ calculatorService.Register("addOne", func(req server.Request, res *server.Respon
         Sum         float64 `json:"sum"`
     }
 
-    x, _ := req.GetArg(0).AsFloat64()
+    form, _ := req.IndexForm()
+    x, _ := form.GetArg(0).AsFloat64()
 
     res.JSON(status.OK, response{x, x+1})
 })

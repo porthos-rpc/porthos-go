@@ -41,13 +41,22 @@ func main() {
 		// nothing to do yet.
 	})
 
+	userService.Register("doSomethingElse", func(req server.Request, res server.Response) {
+		form, _ := req.MapForm()
+		x, _ := form.GetArg("someField").AsFloat64()
+
+		log.Info("doSomethingElse with someField %f", x)
+
+	})
+
 	userService.Register("doSomethingThatReturnsValue", func(req server.Request, res server.Response) {
 		type test struct {
 			Original float64 `json:"original"`
 			Sum      float64 `json:"sum"`
 		}
 
-		x, _ := req.GetArg(0).AsFloat64()
+		form, _ := req.IndexForm()
+		x, _ := form.GetArg(0).AsFloat64()
 
 		res.JSON(status.OK, test{x, x + 1})
 	})
