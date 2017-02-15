@@ -1,13 +1,10 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"time"
 
 	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
-	"github.com/porthos-rpc/porthos-go/message"
 	"github.com/streadway/amqp"
 )
 
@@ -104,20 +101,10 @@ func (s *Server) start() {
 }
 
 func (s *Server) processRequest(d amqp.Delivery) {
-	msg := new(message.MessageBody)
+	methodName := d.Headers["X-Method"].(string)
 
-	decoder := json.NewDecoder(bytes.NewReader(d.Body))
-	decoder.UseNumber()
-
-	err := decoder.Decode(msg)
-
-	if err != nil {
-		log.Error("Unmarshal error: %s", err.Error())
-		return
-	}
-
-	if method, ok := s.methods[msg.Method]; ok {
-		req := &request{s.serviceName, msg.Method, msg.Args}
+	if method, ok := s.methods[methodName]; ok {
+		req := &request{s.serviceName, methodName, d.ContentType, d.Body}
 
 		resWriter := &responseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
 
@@ -127,7 +114,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
 		// queue the job.
 		s.jobQueue <- work
 	} else {
-		log.Error("Method '%s' not found.", msg.Method)
+		log.Error("Method '%s' not found.", methodName)
 		if !s.autoAck {
 			d.Reject(false)
 		}

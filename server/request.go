@@ -6,16 +6,19 @@ type Request interface {
 	GetServiceName() string
 	// GetMethodName returns the method name.
 	GetMethodName() string
-	// GetRawArgs returns all arguments.
-	GetRawArgs() []interface{}
-	// GetArg returns an argument giving the index.
-	GetArg(index int) Argument
+	// GetBody returns the request body.
+	GetBody() []byte
+	// IndexForm returns a index-based form.
+	IndexForm() (IndexForm, error)
+	// MapForm returns a map-based form.
+	MapForm() (MapForm, error)
 }
 
 type request struct {
 	serviceName string
 	methodName  string
-	args        []interface{}
+	contentType string
+	body        []byte
 }
 
 func (r *request) GetServiceName() string {
@@ -26,10 +29,14 @@ func (r *request) GetMethodName() string {
 	return r.methodName
 }
 
-func (r *request) GetRawArgs() []interface{} {
-	return r.args
+func (r *request) GetBody() []byte {
+	return r.body
 }
 
-func (r *request) GetArg(index int) Argument {
-	return &argument{r.args[index]}
+func (r *request) IndexForm() (IndexForm, error) {
+	return NewIndexForm(r.contentType, r.body)
+}
+
+func (r *request) MapForm() (MapForm, error) {
+	return NewMapForm(r.contentType, r.body)
 }

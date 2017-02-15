@@ -1,21 +1,21 @@
 package mock
 
-import (
-	"github.com/porthos-rpc/porthos-go/server"
-)
+import "github.com/porthos-rpc/porthos-go/server"
 
-func NewRequest(service, method string, args ...interface{}) server.Request {
+func NewRequest(service, method string, contentType string, body []byte) *Request {
 	return &Request{
 		ServiceName: service,
 		MethodName:  method,
-		Args:        args,
+		ContentType: contentType,
+		Body:        body,
 	}
 }
 
 type Request struct {
 	ServiceName string
 	MethodName  string
-	Args        []interface{}
+	ContentType string
+	Body        []byte
 }
 
 func (r *Request) GetServiceName() string {
@@ -26,10 +26,14 @@ func (r *Request) GetMethodName() string {
 	return r.MethodName
 }
 
-func (r *Request) GetRawArgs() []interface{} {
-	return r.Args
+func (r *Request) GetBody() []byte {
+	return r.Body
 }
 
-func (r *Request) GetArg(index int) server.Argument {
-	return server.NewArgument(r.Args[index])
+func (r *Request) IndexForm() (server.IndexForm, error) {
+	return server.NewIndexForm(r.ContentType, r.Body)
+}
+
+func (r *Request) MapForm() (server.MapForm, error) {
+	return server.NewMapForm(r.ContentType, r.Body)
 }
