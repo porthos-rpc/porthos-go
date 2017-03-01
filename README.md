@@ -25,14 +25,14 @@ calculatorService, _ := client.NewClient(b, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
-ret, _ := calculatorService.Call("addOne").WithArgs(10).Async()
+ret, _ := calculatorService.Call("addOne").WithMap(map[string]interface{}{"value": 20}).Async()
 defer ret.Dispose()
 
 select {
 case response := <-ret.ResponseChannel():
     jsonResponse, _ := response.UnmarshalJSON()
 
-    fmt.Printf("Original: %f, sum: %f\n", jsonResponse["original"], jsonResponse["sum"])
+    fmt.Printf("Original: %f, sum: %f\n", jsonResponse["original_value"], jsonResponse["value_plus_one"])
 case <-time.After(2 * time.Second):
     fmt.Println("Timed out :(")
 }
@@ -50,15 +50,20 @@ calculatorService, _ := server.NewServer(b, "CalculatorService", 10, false)
 defer calculatorService.Close()
 
 calculatorService.Register("addOne", func(req server.Request, res *server.Response) {
-    type response struct {
-        Original    float64 `json:"original"`
-        Sum         float64 `json:"sum"`
+    type input struct {
+        Value int `json:"value"`
     }
 
-    form, _ := req.IndexForm()
-    x, _ := form.GetArg(0).AsFloat64()
+    type output struct {
+        Original int `json:"original_value"`
+        Sum      int `json:"value_plus_one"`
+    }
 
-    res.JSON(status.OK, response{x, x+1})
+    var i input
+
+    _ = req.Bind(&i)
+
+    res.JSON(status.OK, output{i.Value, i.Value + 1})
 })
 
 calculatorService.Register("subtract", func(req server.Request, res *server.Response) {
