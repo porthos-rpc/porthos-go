@@ -66,7 +66,7 @@ func TestServerProcessRequest(t *testing.T) {
 
 	// register the method that we will test.
 	userService.Register("doSomething", func(req Request, res Response) {
-		form, _ := req.IndexForm()
+		form, _ := req.Form()
 		x, _ := form.GetArg(0).AsFloat64()
 
 		res.JSON(200, ResponseTest{x, x + 1})
@@ -112,7 +112,7 @@ func TestServerProcessRequest(t *testing.T) {
 				"X-Method": "doSomething",
 			},
 			Expiration:    "3000",
-			ContentType:   "application/porthos-args",
+			ContentType:   "application/json",
 			CorrelationId: "1",
 			ReplyTo:       q.Name,
 			Body:          body,

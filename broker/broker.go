@@ -11,11 +11,6 @@ type Broker struct {
 	Conn *amqp.Connection
 }
 
-// Error holds an implementation-specific error.
-type Error struct {
-	brokerError interface{}
-}
-
 // NewBroker creates a new instance of AMQP connection.
 func NewBroker(amqpURL string) (*Broker, error) {
 	conn, err := amqp.Dial(amqpURL)
