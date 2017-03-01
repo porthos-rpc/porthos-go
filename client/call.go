@@ -42,16 +42,28 @@ func (c *call) WithBody(body []byte) *call {
 
 // WitArgs defines the given args as the request body.
 func (c *call) WithArgs(args ...interface{}) *call {
-	c.body, _ = json.Marshal(args)
-	c.contentType = "application/porthos-args"
-
-	return c
+	return c.withJSON(args)
 }
 
 // WithMap defines the given map as the request body.
-func (c *call) WithMap(body map[string]interface{}) *call {
-	c.body, _ = json.Marshal(body)
-	c.contentType = "application/porthos-map"
+func (c *call) WithMap(m map[string]interface{}) *call {
+	return c.withJSON(m)
+}
+
+// WithStruct defines the given struct as the request body.
+func (c *call) WithStruct(i interface{}) *call {
+	return c.withJSON(i)
+}
+
+func (c *call) withJSON(i interface{}) *call {
+	data, err := json.Marshal(i)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.body = data
+	c.contentType = "application/json"
 
 	return c
 }

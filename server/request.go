@@ -1,5 +1,11 @@
 package server
 
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+)
+
 // Request represents a rpc request.
 type Request interface {
 	// GetServiceName returns the service name.
@@ -8,10 +14,10 @@ type Request interface {
 	GetMethodName() string
 	// GetBody returns the request body.
 	GetBody() []byte
-	// IndexForm returns a index-based form.
-	IndexForm() (IndexForm, error)
-	// MapForm returns a map-based form.
-	MapForm() (MapForm, error)
+	// Form returns a index-based form.
+	Form() (Form, error)
+	// Bind binds the body to an interface.
+	Bind(i interface{}) error
 }
 
 type request struct {
@@ -33,10 +39,16 @@ func (r *request) GetBody() []byte {
 	return r.body
 }
 
-func (r *request) IndexForm() (IndexForm, error) {
-	return NewIndexForm(r.contentType, r.body)
+func (r *request) Form() (Form, error) {
+	return NewForm(r.contentType, r.body)
 }
 
-func (r *request) MapForm() (MapForm, error) {
-	return NewMapForm(r.contentType, r.body)
+func (r *request) Bind(i interface{}) error {
+	if r.contentType != "application/json" {
+		return fmt.Errorf("Invalid content type, got: %s", r.contentType)
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(r.body))
+	decoder.UseNumber()
+	return decoder.Decode(i)
 }
