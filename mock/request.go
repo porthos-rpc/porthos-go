@@ -8,15 +8,6 @@ import (
 	"github.com/porthos-rpc/porthos-go/server"
 )
 
-func NewRequest(service, method string, contentType string, body []byte) *Request {
-	return &Request{
-		ServiceName: service,
-		MethodName:  method,
-		ContentType: contentType,
-		Body:        body,
-	}
-}
-
 type Request struct {
 	ServiceName string
 	MethodName  string
@@ -48,4 +39,31 @@ func (r *Request) Bind(i interface{}) error {
 	decoder := json.NewDecoder(bytes.NewReader(r.Body))
 	decoder.UseNumber()
 	return decoder.Decode(i)
+}
+
+func NewRequest(service, method string, contentType string, body []byte) *Request {
+	return &Request{
+		ServiceName: service,
+		MethodName:  method,
+		ContentType: contentType,
+		Body:        body,
+	}
+}
+
+func NewRequestFromMap(service, method string, m map[string]interface{}) *Request {
+	return newRequestJSON(service, method, m)
+}
+
+func NewRequestFromStruct(service, method string, i interface{}) *Request {
+	return newRequestJSON(service, method, i)
+}
+
+func newRequestJSON(service, method string, i interface{}) *Request {
+	data, err := json.Marshal(i)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return NewRequest(service, method, "application/json", data)
 }
