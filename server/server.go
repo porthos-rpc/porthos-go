@@ -21,6 +21,8 @@ type Server struct {
 	autoAck        bool
 	extensions     []*Extension
 	maxWorkers     int
+
+	closes []chan bool
 }
 
 // Options represent all the options supported by the server.
@@ -97,6 +99,10 @@ func (s *Server) start() {
 		for d := range s.requestChannel {
 			s.processRequest(d)
 		}
+
+		for _, c := range s.closes {
+			c <- true
+		}
 	}()
 }
 
@@ -166,4 +172,12 @@ func (s *Server) Start() {
 // Close the client and AMQP chanel.
 func (s *Server) Close() {
 	s.channel.Close()
+}
+
+// NotifyClose returns a channel to be notified then this server closes.
+func (s *Server) NotifyClose() <-chan bool {
+	receiver := make(chan bool)
+	s.closes = append(s.closes, receiver)
+
+	return receiver
 }
