@@ -64,5 +64,5 @@ func main() {
 	userService.Start()
 
 	log.Info("RPC server is waiting for incoming requests...")
-	b.WaitUntilConnectionCloses()
+	<-userService.NotifyClose()
 }
