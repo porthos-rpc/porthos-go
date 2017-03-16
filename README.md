@@ -17,11 +17,11 @@ The client is very simple. `NewClient` takes a broker, a `service name` and a ti
 
 ```go
 // first of all you need a broker
-b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+b, _ := porthos.NewBroker(os.Getenv("AMQP_URL"))
 defer b.Close()
 
 // then you create a new client (you can have as many clients as you want using the same broker)
-calculatorService, _ := client.NewClient(b, "CalculatorService", 120)
+calculatorService, _ := porthos.NewClient(b, "CalculatorService", 120)
 defer calculatorService.Close()
 
 // finally the remote call. It returns a response that contains the output channel.
@@ -43,13 +43,13 @@ case <-time.After(2 * time.Second):
 The server also takes a broker and a `service name`. After that, you `Register` all your handlers and finally `ServeForever`.
 
 ```go
-b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+b, _ := porthos.NewBroker(os.Getenv("AMQP_URL"))
 defer b.Close()
 
-calculatorService, _ := server.NewServer(b, "CalculatorService", 10, false)
+calculatorService, _ := porthos.NewServer(b, "CalculatorService", 10, false)
 defer calculatorService.Close()
 
-calculatorService.Register("addOne", func(req server.Request, res *server.Response) {
+calculatorService.Register("addOne", func(req porthos.Request, res *porthos.Response) {
     type input struct {
         Value int `json:"value"`
     }
@@ -63,10 +63,10 @@ calculatorService.Register("addOne", func(req server.Request, res *server.Respon
 
     _ = req.Bind(&i)
 
-    res.JSON(status.OK, output{i.Value, i.Value + 1})
+    res.JSON(porthos.OK, output{i.Value, i.Value + 1})
 })
 
-calculatorService.Register("subtract", func(req server.Request, res *server.Response) {
+calculatorService.Register("subtract", func(req porthos.Request, res *porthos.Response) {
     // subtraction logic here...
 })
 
@@ -78,10 +78,8 @@ calculatorService.ListenAndServe()
 Extensions can be used to add custom actions to the RPC Server. The available "events" are `incoming` and `outgoing`.
 
 ```go
-import "github.com/porthos-rpc/porthos-go/server"
-
 func NewLoggingExtension() *Extension {
-    ext := server.NewExtension()
+    ext := porthos.NewExtension()
 
     go func() {
         for {
@@ -111,7 +109,7 @@ userService.AddExtension(NewLoggingExtension())
 This extension will ship metrics to the AMQP broker, any application can consume and display them as needed.
 
 ```go
-userService.AddExtension(rpc.NewMetricsShipperExtension(broker, rpc.MetricsShipperConfig{
+userService.AddExtension(porthos.NewMetricsShipperExtension(broker, porthos.MetricsShipperConfig{
     BufferSize: 150,
 }))
 ```
