@@ -15,21 +15,17 @@ type ResponseTest struct {
 }
 
 func TestNewServer(t *testing.T) {
-	broker, err := broker.NewBroker(os.Getenv("AMQP_URL"))
+	broker, err := NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
 		t.Fatal("NewBroker failed.", err)
 	}
 
-	userService, err := NewServer(broker, "UserService", Options{1, false})
+	userService, err := NewServer(broker, "UserService", Options{false})
 	defer userService.Close()
 
 	if err != nil {
 		t.Fatal("NewServer failed.", err)
-	}
-
-	if userService.jobQueue == nil {
-		t.Error("Service jobQueue is nil.")
 	}
 
 	if userService.serviceName != "UserService" {
@@ -50,13 +46,13 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestServerProcessRequest(t *testing.T) {
-	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
+	b, err := NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
 		t.Fatal("NewBroker failed.", err)
 	}
 
-	userService, err := NewServer(b, "UserService", Options{1, false})
+	userService, err := NewServer(b, "UserService", Options{false})
 	defer userService.Close()
 
 	if err != nil {

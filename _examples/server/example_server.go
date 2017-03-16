@@ -17,7 +17,7 @@ func main() {
 	}
 
 	// create the RPC server.
-	userService, err := porthos.NewServer(b, "UserService", porthos.Options{MaxWorkers: 40, AutoAck: false})
+	userService, err := porthos.NewServer(b, "UserService", porthos.Options{AutoAck: false})
 
 	if err != nil {
 		log.Error("Error creating server")

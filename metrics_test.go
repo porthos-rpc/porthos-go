@@ -7,7 +7,7 @@ import (
 )
 
 func TestMetricsShipperExtension(t *testing.T) {
-	b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+	b, _ := NewBroker(os.Getenv("AMQP_URL"))
 
 	ext := NewMetricsShipperExtension(b, MetricsShipperConfig{BufferSize: 2})
 
