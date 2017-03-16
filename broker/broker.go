@@ -117,7 +117,7 @@ func (b *Broker) handleConnectionClose() {
 
 				break
 			} else {
-				log.Error("Error reestablishing connection. Retrying...", err)
+				log.Error("Error reestablishing connection, attempt %d. Retrying... [%s]", i, err)
 
 				time.Sleep(b.config.reconnectInterval)
 			}

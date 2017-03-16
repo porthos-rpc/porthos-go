@@ -121,7 +121,7 @@ func (s *Server) handleReestablishedConnnection() {
 		err := s.setupTopology()
 
 		if err != nil {
-			log.Error("Error setting up topology after reconnection", err)
+			log.Error("Error setting up topology after reconnection [%s]", err)
 		}
 	}
 }
