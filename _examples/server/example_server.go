@@ -20,6 +20,12 @@ func main() {
 
 	// create the RPC server.
 	userService, err := server.NewServer(b, "UserService", server.Options{MaxWorkers: 40, AutoAck: false})
+
+	if err != nil {
+		log.Error("Error creating server")
+		panic(err)
+	}
+
 	defer userService.Close()
 
 	// create and add the built-in metrics shipper.
@@ -29,11 +35,6 @@ func main() {
 
 	// create and add the access log extension.
 	userService.AddExtension(server.NewAccessLogExtension())
-
-	if err != nil {
-		log.Error("Error creating server")
-		panic(err)
-	}
 
 	userService.Register("doSomething", func(req server.Request, res server.Response) {
 		// nothing to do yet.
