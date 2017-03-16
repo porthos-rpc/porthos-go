@@ -84,11 +84,6 @@ func (b *Broker) NotifyReestablish() <-chan bool {
 	return receiver
 }
 
-// WaitUntilConnectionCloses hold the current goroutine until the connection with the broker closes.
-func (b *Broker) WaitUntilConnectionCloses() {
-	<-b.NotifyConnectionClose()
-}
-
 func (b *Broker) reestablish() error {
 	conn, err := amqp.Dial(b.url)
 
@@ -103,7 +98,7 @@ func (b *Broker) reestablish() error {
 
 func (b *Broker) handleConnectionClose() {
 	for !b.closed {
-		b.WaitUntilConnectionCloses()
+		<-b.NotifyConnectionClose()
 
 		for i := 0; !b.closed; i++ {
 			err := b.reestablish()
