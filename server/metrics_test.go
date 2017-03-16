@@ -20,7 +20,7 @@ func TestMetricsShipperExtension(t *testing.T) {
 	ext.outgoing <- OutgoingRPC{&request{serviceName: "SampleService", methodName: "test4"}, &response{}, 8 * time.Millisecond, 200}
 	ext.outgoing <- OutgoingRPC{&request{serviceName: "SampleService", methodName: "test4"}, &response{}, 9 * time.Millisecond, 200}
 
-	ch, _ := b.Conn.Channel()
+	ch, _ := b.OpenChannel()
 
 	dc, _ := ch.Consume(
 		"porthos.metrics", // queue
@@ -35,7 +35,7 @@ func TestMetricsShipperExtension(t *testing.T) {
 	shippedMetricsCount := 0
 
 	go func() {
-		for _ = range dc {
+		for range dc {
 			shippedMetricsCount++
 		}
 	}()
