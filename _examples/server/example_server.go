@@ -3,14 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/porthos-rpc/porthos-go/broker"
+	"github.com/porthos-rpc/porthos-go"
 	"github.com/porthos-rpc/porthos-go/log"
-	"github.com/porthos-rpc/porthos-go/server"
-	"github.com/porthos-rpc/porthos-go/status"
 )
 
 func main() {
-	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
+	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
 	defer b.Close()
 
 	if err != nil {
@@ -19,7 +17,7 @@ func main() {
 	}
 
 	// create the RPC server.
-	userService, err := server.NewServer(b, "UserService", server.Options{MaxWorkers: 40, AutoAck: false})
+	userService, err := porthos.NewServer(b, "UserService", porthos.Options{MaxWorkers: 40, AutoAck: false})
 
 	if err != nil {
 		log.Error("Error creating server")
@@ -29,24 +27,24 @@ func main() {
 	defer userService.Close()
 
 	// create and add the built-in metrics shipper.
-	userService.AddExtension(server.NewMetricsShipperExtension(b, server.MetricsShipperConfig{
+	userService.AddExtension(porthos.NewMetricsShipperExtension(b, porthos.MetricsShipperConfig{
 		BufferSize: 100,
 	}))
 
 	// create and add the access log extension.
-	userService.AddExtension(server.NewAccessLogExtension())
+	userService.AddExtension(porthos.NewAccessLogExtension())
 
-	userService.Register("doSomething", func(req server.Request, res server.Response) {
+	userService.Register("doSomething", func(req porthos.Request, res porthos.Response) {
 		// nothing to do yet.
 	})
 
-	userService.Register("doSomethingElse", func(req server.Request, res server.Response) {
+	userService.Register("doSomethingElse", func(req porthos.Request, res porthos.Response) {
 		m := make(map[string]int)
 		_ = req.Bind(&m)
 		log.Info("doSomethingElse with value %f", m["value"])
 	})
 
-	userService.Register("doSomethingThatReturnsValue", func(req server.Request, res server.Response) {
+	userService.Register("doSomethingThatReturnsValue", func(req porthos.Request, res porthos.Response) {
 		type input struct {
 			Value int `json:"value"`
 		}
@@ -60,7 +58,7 @@ func main() {
 
 		_ = req.Bind(&i)
 
-		res.JSON(status.OK, output{i.Value, i.Value + 1})
+		res.JSON(porthos.OK, output{i.Value, i.Value + 1})
 	})
 
 	userService.ListenAndServe()
