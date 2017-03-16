@@ -21,10 +21,9 @@ type Client struct {
 
 // NewClient creates a new instance of Client, responsible for making remote calls.
 func NewClient(b *broker.Broker, serviceName string, defaultTTL time.Duration) (*Client, error) {
-	ch, err := b.Conn.Channel()
+	ch, err := b.OpenChannel()
 
 	if err != nil {
-		b.Conn.Close()
 		return nil, err
 	}
 

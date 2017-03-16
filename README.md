@@ -70,10 +70,7 @@ calculatorService.Register("subtract", func(req server.Request, res *server.Resp
     // subtraction logic here...
 })
 
-calculatorService.Start()
-
-fmt.Println("RPC server is waiting for incoming requests...")
-b.WaitUntilConnectionCloses()
+calculatorService.ListenAndServe()
 ```
 
 ## Extensions

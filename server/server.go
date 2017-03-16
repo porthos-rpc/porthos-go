@@ -1,6 +1,7 @@
 package server
 
 import (
+	"sync"
 	"time"
 
 	"github.com/porthos-rpc/porthos-go/broker"
@@ -13,6 +14,8 @@ type MethodHandler func(req Request, res Response)
 
 // Server is used to register procedures to be invoked remotely.
 type Server struct {
+	m              sync.Mutex
+	broker         *broker.Broker
 	jobQueue       chan Job
 	serviceName    string
 	channel        *amqp.Channel
@@ -21,7 +24,9 @@ type Server struct {
 	autoAck        bool
 	extensions     []*Extension
 	maxWorkers     int
+	serving        bool
 
+	closed bool
 	closes []chan bool
 }
 
@@ -33,43 +38,6 @@ type Options struct {
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
 func NewServer(b *broker.Broker, serviceName string, options Options) (*Server, error) {
-	ch, err := b.Conn.Channel()
-
-	if err != nil {
-		b.Conn.Close()
-		return nil, err
-	}
-
-	// create the response queue (let the amqp server to pick a name for us)
-	_, err = ch.QueueDeclare(
-		serviceName, // name
-		true,        // durable
-		false,       // delete when usused
-		false,       // exclusive
-		false,       // noWait
-		nil,         // arguments
-	)
-
-	if err != nil {
-		ch.Close()
-		return nil, err
-	}
-
-	dc, err := ch.Consume(
-		serviceName,     // queue
-		"",              // consumer
-		options.AutoAck, // auto-ack
-		false,           // exclusive
-		false,           // no-local
-		false,           // no-wait
-		nil,             // args
-	)
-
-	if err != nil {
-		ch.Close()
-		return nil, err
-	}
-
 	maxWorkers := options.MaxWorkers
 
 	if maxWorkers <= 0 {
@@ -77,16 +45,83 @@ func NewServer(b *broker.Broker, serviceName string, options Options) (*Server, 
 	}
 
 	s := &Server{
-		serviceName:    serviceName,
-		channel:        ch,
-		requestChannel: dc,
-		methods:        make(map[string]MethodHandler),
-		jobQueue:       make(chan Job, maxWorkers),
-		autoAck:        options.AutoAck,
-		maxWorkers:     maxWorkers,
+		broker:      b,
+		serviceName: serviceName,
+		methods:     make(map[string]MethodHandler),
+		jobQueue:    make(chan Job, maxWorkers),
+		autoAck:     options.AutoAck,
+		maxWorkers:  maxWorkers,
 	}
 
+	err := s.setupTopology()
+
+	if err != nil {
+		return nil, err
+	}
+
+	go s.handleReestablishedConnnection()
+
 	return s, nil
+}
+
+func (s *Server) setupTopology() error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	var err error
+	s.channel, err = s.broker.OpenChannel()
+
+	if err != nil {
+		return err
+	}
+
+	// create the response queue (let the amqp server to pick a name for us)
+	_, err = s.channel.QueueDeclare(
+		s.serviceName, // name
+		true,          // durable
+		false,         // delete when usused
+		false,         // exclusive
+		false,         // noWait
+		nil,           // arguments
+	)
+
+	if err != nil {
+		s.channel.Close()
+		return err
+	}
+
+	s.requestChannel, err = s.channel.Consume(
+		s.serviceName, // queue
+		"",            // consumer
+		s.autoAck,     // auto-ack
+		false,         // exclusive
+		false,         // no-local
+		false,         // no-wait
+		nil,           // args
+	)
+
+	if err != nil {
+		s.channel.Close()
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) handleReestablishedConnnection() {
+	for !s.closed {
+		<-s.broker.NotifyReestablish()
+
+		err := s.setupTopology()
+
+		if err == nil {
+			if s.serving {
+				go s.serve()
+			}
+		} else {
+			log.Error("Error setting up topology after reconnection", err)
+		}
+	}
 }
 
 func (s *Server) startWorkers(maxWorkers int) {
@@ -94,16 +129,28 @@ func (s *Server) startWorkers(maxWorkers int) {
 	dispatcher.Run()
 }
 
-func (s *Server) start() {
-	go func() {
-		for d := range s.requestChannel {
-			s.processRequest(d)
-		}
+func (s *Server) serve() {
+	s.printRegisteredMethods()
 
+	log.Info("Connected to the broker and waiting for incoming rpc requests...")
+
+	for d := range s.requestChannel {
+		s.processRequest(d)
+	}
+
+	if s.closed {
 		for _, c := range s.closes {
 			c <- true
 		}
-	}()
+	}
+}
+
+func (s *Server) printRegisteredMethods() {
+	log.Info("[%s]", s.serviceName)
+
+	for method := range s.methods {
+		log.Info(". %s", method)
+	}
 }
 
 func (s *Server) processRequest(d amqp.Delivery) {
@@ -163,15 +210,35 @@ func (s *Server) AddExtension(ext *Extension) {
 	s.extensions = append(s.extensions, ext)
 }
 
-// Start serving RPC requests.
-func (s *Server) Start() {
+// ListenAndServe start serving RPC requests.
+func (s *Server) ListenAndServe() {
+	s.serving = true
+
 	s.startWorkers(s.maxWorkers)
-	s.start()
+	go s.serve()
 }
 
-// Close the client and AMQP chanel.
+// Close the client and AMQP channel.
+// This method returns right after the AMQP channel is closed.
+// In order to give time to the current request to finish (if there's one)
+// it's up to you to wait using the NotifyClose.
 func (s *Server) Close() {
+	s.closed = true
 	s.channel.Close()
+}
+
+// Shutdown shuts down the client and AMQP channel.
+// It provider graceful shutdown, since it will wait the result
+// of <-s.NotifyClose().
+func (s *Server) Shutdown() {
+	ch := make(chan bool)
+
+	go func() {
+		ch <- <-s.NotifyClose()
+	}()
+
+	s.Close()
+	<-ch
 }
 
 // NotifyClose returns a channel to be notified then this server closes.

@@ -1,30 +1,65 @@
 package broker
 
 import (
-	"errors"
+	"sync"
+	"time"
 
+	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
 
 // Broker holds an implementation-specific connection.
 type Broker struct {
-	Conn *amqp.Connection
+	config       Config
+	connection   *amqp.Connection
+	m            sync.Mutex
+	url          string
+	closed       bool
+	reestablishs []chan bool
+}
+
+// Config to be used when creating a new connection.
+type Config struct {
+	reconnectInterval time.Duration
 }
 
 // NewBroker creates a new instance of AMQP connection.
 func NewBroker(amqpURL string) (*Broker, error) {
+	return NewBrokerConfig(amqpURL, Config{
+		reconnectInterval: 1 * time.Second,
+	})
+}
+
+// NewBrokerConfig returns an AMQP Connection.
+func NewBrokerConfig(amqpURL string, config Config) (*Broker, error) {
 	conn, err := amqp.Dial(amqpURL)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Broker{conn}, nil
+	b := &Broker{
+		connection: conn,
+		url:        amqpURL,
+		config:     config,
+	}
+
+	go b.handleConnectionClose()
+
+	return b, nil
+}
+
+// OpenChannel returns an AMQP Consumer.
+func (b *Broker) OpenChannel() (*amqp.Channel, error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	return b.connection.Channel()
 }
 
 // Close the broker connection.
 func (b *Broker) Close() {
-	b.Conn.Close()
+	b.connection.Close()
 }
 
 // NotifyConnectionClose writes in the returned channel when the connection with the broker closes.
@@ -32,13 +67,57 @@ func (b *Broker) NotifyConnectionClose() <-chan error {
 	ch := make(chan error)
 
 	go func() {
-		ch <- errors.New((<-b.Conn.NotifyClose(make(chan *amqp.Error))).Error())
+		ch <- <-b.connection.NotifyClose(make(chan *amqp.Error))
 	}()
 
 	return ch
 }
 
+// NotifyReestablish returns a channel to notify when the connection is restablished.
+func (b *Broker) NotifyReestablish() <-chan bool {
+	receiver := make(chan bool)
+	b.reestablishs = append(b.reestablishs, receiver)
+
+	return receiver
+}
+
 // WaitUntilConnectionCloses hold the current goroutine until the connection with the broker closes.
 func (b *Broker) WaitUntilConnectionCloses() {
 	<-b.NotifyConnectionClose()
+}
+
+func (b *Broker) reestablish() error {
+	conn, err := amqp.Dial(b.url)
+
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	b.connection = conn
+
+	return err
+
+}
+
+func (b *Broker) handleConnectionClose() {
+	for !b.closed {
+		b.WaitUntilConnectionCloses()
+
+		for i := 0; !b.closed; i++ {
+			err := b.reestablish()
+
+			if err == nil {
+				log.Info("Connection reestablished")
+
+				for _, c := range b.reestablishs {
+					c <- true
+				}
+
+				break
+			} else {
+				log.Error("Error reestablishing connection. Retrying...", err)
+
+				time.Sleep(b.config.reconnectInterval)
+			}
+		}
+	}
 }

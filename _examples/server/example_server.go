@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
@@ -11,13 +13,12 @@ import (
 
 func main() {
 	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
+	defer b.Close()
 
 	if err != nil {
 		log.Error("Error creating broker")
 		panic(err)
 	}
-
-	defer b.Close()
 
 	// create the RPC server.
 	userService, err := server.NewServer(b, "UserService", server.Options{MaxWorkers: 40, AutoAck: false})
@@ -34,8 +35,6 @@ func main() {
 		log.Error("Error creating server")
 		panic(err)
 	}
-
-	defer userService.Close()
 
 	userService.Register("doSomething", func(req server.Request, res server.Response) {
 		// nothing to do yet.
@@ -64,8 +63,11 @@ func main() {
 		res.JSON(status.OK, output{i.Value, i.Value + 1})
 	})
 
-	userService.Start()
+	userService.ListenAndServe()
 
-	log.Info("RPC server is waiting for incoming requests...")
-	<-userService.NotifyClose()
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGTERM)
+
+	<-sigc
+	userService.Shutdown()
 }
