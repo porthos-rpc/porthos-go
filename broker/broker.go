@@ -59,6 +59,9 @@ func (b *Broker) OpenChannel() (*amqp.Channel, error) {
 
 // Close the broker connection.
 func (b *Broker) Close() {
+	b.m.Lock()
+	defer b.m.Unlock()
+
 	b.connection.Close()
 }
 

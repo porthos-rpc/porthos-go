@@ -24,7 +24,7 @@ type Server struct {
 	autoAck        bool
 	extensions     []*Extension
 	maxWorkers     int
-	serving        bool
+	topologySet    bool
 
 	closed bool
 	closes []chan bool
@@ -35,6 +35,8 @@ type Options struct {
 	MaxWorkers int
 	AutoAck    bool
 }
+
+var servePollInterval = 500 * time.Millisecond
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
 func NewServer(b *broker.Broker, serviceName string, options Options) (*Server, error) {
@@ -105,20 +107,20 @@ func (s *Server) setupTopology() error {
 		return err
 	}
 
+	s.topologySet = true
+
 	return nil
 }
 
 func (s *Server) handleReestablishedConnnection() {
+	notifyCh := s.broker.NotifyReestablish()
+
 	for !s.closed {
-		<-s.broker.NotifyReestablish()
+		<-notifyCh
 
 		err := s.setupTopology()
 
-		if err == nil {
-			if s.serving {
-				go s.serve()
-			}
-		} else {
+		if err != nil {
 			log.Error("Error setting up topology after reconnection", err)
 		}
 	}
@@ -130,18 +132,24 @@ func (s *Server) startWorkers(maxWorkers int) {
 }
 
 func (s *Server) serve() {
-	s.printRegisteredMethods()
+	for !s.closed {
+		if s.topologySet {
+			s.printRegisteredMethods()
 
-	log.Info("Connected to the broker and waiting for incoming rpc requests...")
+			log.Info("Connected to the broker and waiting for incoming rpc requests...")
 
-	for d := range s.requestChannel {
-		s.processRequest(d)
+			for d := range s.requestChannel {
+				s.processRequest(d)
+			}
+
+			s.topologySet = false
+		} else {
+			time.Sleep(servePollInterval)
+		}
 	}
 
-	if s.closed {
-		for _, c := range s.closes {
-			c <- true
-		}
+	for _, c := range s.closes {
+		c <- true
 	}
 }
 
@@ -212,10 +220,8 @@ func (s *Server) AddExtension(ext *Extension) {
 
 // ListenAndServe start serving RPC requests.
 func (s *Server) ListenAndServe() {
-	s.serving = true
-
 	s.startWorkers(s.maxWorkers)
-	go s.serve()
+	s.serve()
 }
 
 // Close the client and AMQP channel.

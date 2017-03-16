@@ -2,8 +2,6 @@ package main
 
 import (
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
@@ -22,6 +20,7 @@ func main() {
 
 	// create the RPC server.
 	userService, err := server.NewServer(b, "UserService", server.Options{MaxWorkers: 40, AutoAck: false})
+	defer userService.Close()
 
 	// create and add the built-in metrics shipper.
 	userService.AddExtension(server.NewMetricsShipperExtension(b, server.MetricsShipperConfig{
@@ -64,10 +63,4 @@ func main() {
 	})
 
 	userService.ListenAndServe()
-
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, syscall.SIGTERM)
-
-	<-sigc
-	userService.Shutdown()
 }
