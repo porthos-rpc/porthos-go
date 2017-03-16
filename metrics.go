@@ -75,7 +75,7 @@ func (mc *metricsCollector) ship() {
 func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) *Extension {
 	ext := NewOutgoingOnlyExtension()
 
-	ch, err := b.OpenChannel()
+	ch, err := b.openChannel()
 
 	if err != nil {
 		log.Error("Error creating metrics broker channel", err)

@@ -49,14 +49,6 @@ func NewBrokerConfig(amqpURL string, config Config) (*Broker, error) {
 	return b, nil
 }
 
-// OpenChannel returns an AMQP Consumer.
-func (b *Broker) OpenChannel() (*amqp.Channel, error) {
-	b.m.Lock()
-	defer b.m.Unlock()
-
-	return b.connection.Channel()
-}
-
 // Close the broker connection.
 func (b *Broker) Close() {
 	b.m.Lock()
@@ -82,6 +74,13 @@ func (b *Broker) NotifyReestablish() <-chan bool {
 	b.reestablishs = append(b.reestablishs, receiver)
 
 	return receiver
+}
+
+func (b *Broker) openChannel() (*amqp.Channel, error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	return b.connection.Channel()
 }
 
 func (b *Broker) reestablish() error {

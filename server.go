@@ -70,7 +70,7 @@ func (s *Server) setupTopology() error {
 	defer s.m.Unlock()
 
 	var err error
-	s.channel, err = s.broker.OpenChannel()
+	s.channel, err = s.broker.openChannel()
 
 	if err != nil {
 		return err
