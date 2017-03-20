@@ -6,12 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/porthos-rpc/porthos-go/broker"
-	"github.com/porthos-rpc/porthos-go/client"
+	porthos "github.com/porthos-rpc/porthos-go"
 )
 
 func main() {
-	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
+	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
 
 	if err != nil {
 		fmt.Printf("Error creating broker")
@@ -21,7 +20,7 @@ func main() {
 	defer b.Close()
 
 	// create a client with a default timeout of 1 second.
-	userService, err := client.NewClient(b, "UserService", 1*time.Second)
+	userService, err := porthos.NewClient(b, "UserService", 1*time.Second)
 
 	if err != nil {
 		fmt.Printf("Error creating client")
@@ -35,7 +34,7 @@ func main() {
 	fmt.Println("Service userService.doSomething invoked")
 
 	// call a remote method that returns the value right away.
-	response, _ := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": 20}).Sync()
+	response, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": 20}).Sync()
 	jsonResponse, _ := response.UnmarshalJSON()
 	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["value_plus_one"])
 
@@ -64,7 +63,7 @@ func main() {
 	wg.Wait()
 
 	// call a remote method that returns the value right away.
-	response, _ = userService.Call("doSomethingElse").WithMap(client.Map{"someField": 10}).Sync()
+	response, _ = userService.Call("doSomethingElse").WithMap(porthos.Map{"someField": 10}).Sync()
 	jsonResponse, _ = response.UnmarshalJSON()
 	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["value_plus_one"])
 

@@ -1,4 +1,4 @@
-package status
+package porthos
 
 // Our status codes were inherited from HTTP status sodes:
 // See: http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml

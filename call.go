@@ -1,11 +1,10 @@
-package client
+package porthos
 
 import (
 	"encoding/json"
 	"strconv"
 	"time"
 
-	"github.com/porthos-rpc/porthos-go/errors"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
@@ -101,7 +100,7 @@ func (c *call) Async() (*Slot, error) {
 
 // Sync calls the remote method with the given arguments.
 // It returns a Response and any possible error.
-func (c *call) Sync() (*Response, error) {
+func (c *call) Sync() (*ClientResponse, error) {
 	slot, err := c.Async()
 
 	if err != nil {
@@ -114,7 +113,7 @@ func (c *call) Sync() (*Response, error) {
 	case response := <-slot.ResponseChannel():
 		return &response, nil
 	case <-time.After(c.getTimeout()):
-		return nil, errors.ErrTimedOut
+		return nil, ErrTimedOut
 	}
 }
 

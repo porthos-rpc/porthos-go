@@ -1,4 +1,4 @@
-package server
+package porthos
 
 // Headers represents RPC headers (request and response).
 type Headers struct {

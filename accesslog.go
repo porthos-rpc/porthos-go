@@ -1,4 +1,4 @@
-package server
+package porthos
 
 import (
 	"github.com/porthos-rpc/porthos-go/log"

@@ -1,4 +1,4 @@
-package client
+package porthos
 
 import (
 	"sync"
@@ -7,7 +7,7 @@ import (
 
 // Slot of a RPC call.
 type Slot struct {
-	responseChannel chan Response
+	responseChannel chan ClientResponse
 	closed          bool
 	mutex           *sync.Mutex
 }
@@ -17,7 +17,7 @@ func (r *Slot) getCorrelationID() string {
 }
 
 // ResponseChannel returns the response channel.
-func (r *Slot) ResponseChannel() <-chan Response {
+func (r *Slot) ResponseChannel() <-chan ClientResponse {
 	return r.responseChannel
 }
 

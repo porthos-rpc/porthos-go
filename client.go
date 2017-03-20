@@ -1,11 +1,10 @@
-package client
+package porthos
 
 import (
 	"sync"
 	"time"
 	"unsafe"
 
-	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
@@ -20,11 +19,10 @@ type Client struct {
 }
 
 // NewClient creates a new instance of Client, responsible for making remote calls.
-func NewClient(b *broker.Broker, serviceName string, defaultTTL time.Duration) (*Client, error) {
-	ch, err := b.Conn.Channel()
+func NewClient(b *Broker, serviceName string, defaultTTL time.Duration) (*Client, error) {
+	ch, err := b.openChannel()
 
 	if err != nil {
-		b.Conn.Close()
 		return nil, err
 	}
 
@@ -86,7 +84,7 @@ func (c *Client) processResponse(d amqp.Delivery) {
 		defer res.mutex.Unlock()
 
 		if !res.closed {
-			res.responseChannel <- Response{
+			res.responseChannel <- ClientResponse{
 				Content:     d.Body,
 				ContentType: d.ContentType,
 				StatusCode:  d.Headers["statusCode"].(int16),
@@ -111,7 +109,7 @@ func (c *Client) getSlot(address uintptr) *Slot {
 }
 
 func (c *Client) makeNewSlot() *Slot {
-	return &Slot{make(chan Response), false, new(sync.Mutex)}
+	return &Slot{make(chan ClientResponse), false, new(sync.Mutex)}
 }
 
 func (c *Client) unmarshallCorrelationID(correlationID string) uintptr {

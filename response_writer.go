@@ -1,7 +1,6 @@
-package server
+package porthos
 
 import (
-	"github.com/porthos-rpc/porthos-go/errors"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
@@ -21,7 +20,7 @@ func (rw *responseWriter) Write(res Response) error {
 	log.Debug("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
 
 	if rw.channel == nil {
-		return errors.ErrNilPublishChannel
+		return ErrNilPublishChannel
 	}
 
 	// status code is a header as well.

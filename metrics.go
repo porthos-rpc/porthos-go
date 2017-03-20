@@ -1,10 +1,9 @@
-package server
+package porthos
 
 import (
 	"encoding/json"
 	"time"
 
-	"github.com/porthos-rpc/porthos-go/broker"
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
@@ -73,10 +72,10 @@ func (mc *metricsCollector) ship() {
 }
 
 // NewMetricsShipperExtension creates a new extension that collect stats from RPC calls (request and response)
-func NewMetricsShipperExtension(b *broker.Broker, config MetricsShipperConfig) *Extension {
+func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) *Extension {
 	ext := NewOutgoingOnlyExtension()
 
-	ch, err := b.Conn.Channel()
+	ch, err := b.openChannel()
 
 	if err != nil {
 		log.Error("Error creating metrics broker channel", err)

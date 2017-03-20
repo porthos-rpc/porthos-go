@@ -1,4 +1,4 @@
-package errors
+package porthos
 
 import (
 	"errors"

@@ -3,12 +3,12 @@ package mock
 import (
 	"encoding/json"
 
-	"github.com/porthos-rpc/porthos-go/server"
+	"github.com/porthos-rpc/porthos-go"
 )
 
-func NewResponse() server.Response {
+func NewResponse() porthos.Response {
 	return &Response{
-		Headers: server.NewHeaders(),
+		Headers: porthos.NewHeaders(),
 	}
 }
 
@@ -16,7 +16,7 @@ type Response struct {
 	Body        []byte
 	ContentType string
 	StatusCode  int16
-	Headers     *server.Headers
+	Headers     *porthos.Headers
 }
 
 func (r *Response) JSON(statusCode int16, Body interface{}) {
@@ -41,7 +41,7 @@ func (r *Response) Empty(statusCode int16) {
 	r.StatusCode = statusCode
 }
 
-func (r *Response) GetHeaders() *server.Headers {
+func (r *Response) GetHeaders() *porthos.Headers {
 	return r.Headers
 }
 

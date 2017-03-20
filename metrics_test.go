@@ -1,15 +1,13 @@
-package server
+package porthos
 
 import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/porthos-rpc/porthos-go/broker"
 )
 
 func TestMetricsShipperExtension(t *testing.T) {
-	b, _ := broker.NewBroker(os.Getenv("AMQP_URL"))
+	b, _ := NewBroker(os.Getenv("AMQP_URL"))
 
 	ext := NewMetricsShipperExtension(b, MetricsShipperConfig{BufferSize: 2})
 
@@ -20,7 +18,7 @@ func TestMetricsShipperExtension(t *testing.T) {
 	ext.outgoing <- OutgoingRPC{&request{serviceName: "SampleService", methodName: "test4"}, &response{}, 8 * time.Millisecond, 200}
 	ext.outgoing <- OutgoingRPC{&request{serviceName: "SampleService", methodName: "test4"}, &response{}, 9 * time.Millisecond, 200}
 
-	ch, _ := b.Conn.Channel()
+	ch, _ := b.openChannel()
 
 	dc, _ := ch.Consume(
 		"porthos.metrics", // queue
@@ -35,7 +33,7 @@ func TestMetricsShipperExtension(t *testing.T) {
 	shippedMetricsCount := 0
 
 	go func() {
-		for _ = range dc {
+		for range dc {
 			shippedMetricsCount++
 		}
 	}()

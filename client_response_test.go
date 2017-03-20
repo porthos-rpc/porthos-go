@@ -1,13 +1,15 @@
-package client
+package porthos
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestUnmarshalJSONTo(t *testing.T) {
 	type Test struct {
 		A int `json:"a"`
 	}
 
-	res := Response{
+	res := ClientResponse{
 		ContentType: "application/json",
 		Content:     []byte("{\"a\": 1}"),
 	}
@@ -29,7 +31,7 @@ func TestUnmarshalJSONToInvalidContentType(t *testing.T) {
 		A int `json:"a"`
 	}
 
-	res := Response{
+	res := ClientResponse{
 		ContentType: "text/plain",
 		Content:     []byte("{\"a\": 1}"),
 	}
@@ -43,7 +45,7 @@ func TestUnmarshalJSONToInvalidContentType(t *testing.T) {
 }
 
 func TestUnmarshalJSON(t *testing.T) {
-	res := Response{
+	res := ClientResponse{
 		ContentType: "application/json",
 		Content:     []byte("{\"a\": 1.0}"),
 	}
@@ -60,7 +62,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func TestUnmarshalJSONInvalidContentType(t *testing.T) {
-	res := Response{
+	res := ClientResponse{
 		ContentType: "text/plain",
 		Content:     []byte("{\"a\": 1.0}"),
 	}

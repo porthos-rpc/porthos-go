@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/porthos-rpc/porthos-go/server"
+	"github.com/porthos-rpc/porthos-go"
 )
 
 type Request struct {
@@ -27,8 +27,8 @@ func (r *Request) GetBody() []byte {
 	return r.Body
 }
 
-func (r *Request) Form() (server.Form, error) {
-	return server.NewForm(r.ContentType, r.Body)
+func (r *Request) Form() (porthos.Form, error) {
+	return porthos.NewForm(r.ContentType, r.Body)
 }
 
 func (r *Request) Bind(i interface{}) error {

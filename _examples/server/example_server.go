@@ -3,32 +3,21 @@ package main
 import (
 	"os"
 
-	"github.com/porthos-rpc/porthos-go/broker"
+	"github.com/porthos-rpc/porthos-go"
 	"github.com/porthos-rpc/porthos-go/log"
-	"github.com/porthos-rpc/porthos-go/server"
-	"github.com/porthos-rpc/porthos-go/status"
 )
 
 func main() {
-	b, err := broker.NewBroker(os.Getenv("AMQP_URL"))
+	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
+	defer b.Close()
 
 	if err != nil {
 		log.Error("Error creating broker")
 		panic(err)
 	}
 
-	defer b.Close()
-
 	// create the RPC server.
-	userService, err := server.NewServer(b, "UserService", server.Options{MaxWorkers: 40, AutoAck: false})
-
-	// create and add the built-in metrics shipper.
-	userService.AddExtension(server.NewMetricsShipperExtension(b, server.MetricsShipperConfig{
-		BufferSize: 100,
-	}))
-
-	// create and add the access log extension.
-	userService.AddExtension(server.NewAccessLogExtension())
+	userService, err := porthos.NewServer(b, "UserService", porthos.Options{AutoAck: false})
 
 	if err != nil {
 		log.Error("Error creating server")
@@ -37,17 +26,25 @@ func main() {
 
 	defer userService.Close()
 
-	userService.Register("doSomething", func(req server.Request, res server.Response) {
+	// create and add the built-in metrics shipper.
+	userService.AddExtension(porthos.NewMetricsShipperExtension(b, porthos.MetricsShipperConfig{
+		BufferSize: 100,
+	}))
+
+	// create and add the access log extension.
+	userService.AddExtension(porthos.NewAccessLogExtension())
+
+	userService.Register("doSomething", func(req porthos.Request, res porthos.Response) {
 		// nothing to do yet.
 	})
 
-	userService.Register("doSomethingElse", func(req server.Request, res server.Response) {
+	userService.Register("doSomethingElse", func(req porthos.Request, res porthos.Response) {
 		m := make(map[string]int)
 		_ = req.Bind(&m)
 		log.Info("doSomethingElse with value %f", m["value"])
 	})
 
-	userService.Register("doSomethingThatReturnsValue", func(req server.Request, res server.Response) {
+	userService.Register("doSomethingThatReturnsValue", func(req porthos.Request, res porthos.Response) {
 		type input struct {
 			Value int `json:"value"`
 		}
@@ -61,11 +58,8 @@ func main() {
 
 		_ = req.Bind(&i)
 
-		res.JSON(status.OK, output{i.Value, i.Value + 1})
+		res.JSON(porthos.OK, output{i.Value, i.Value + 1})
 	})
 
-	userService.Start()
-
-	log.Info("RPC server is waiting for incoming requests...")
-	<-userService.NotifyClose()
+	userService.ListenAndServe()
 }

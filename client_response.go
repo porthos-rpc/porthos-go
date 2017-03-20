@@ -1,12 +1,12 @@
-package client
+package porthos
 
 import (
 	"encoding/json"
 	"errors"
 )
 
-// Response represents the response object of a RPC call.
-type Response struct {
+// ClientResponse represents the response object of a RPC call.
+type ClientResponse struct {
 	StatusCode  int16
 	Headers     map[string]interface{}
 	Content     []byte
@@ -14,7 +14,7 @@ type Response struct {
 }
 
 // UnmarshalJSONTo outputs the response content to the argument pointer.
-func (r *Response) UnmarshalJSONTo(v interface{}) error {
+func (r *ClientResponse) UnmarshalJSONTo(v interface{}) error {
 	if r.ContentType != "application/json" {
 		return errors.New("The content type of the response is not 'application/json'")
 	}
@@ -24,7 +24,7 @@ func (r *Response) UnmarshalJSONTo(v interface{}) error {
 }
 
 // UnmarshalJSON outputs the response content to the argument pointer.
-func (r *Response) UnmarshalJSON() (map[string]interface{}, error) {
+func (r *ClientResponse) UnmarshalJSON() (map[string]interface{}, error) {
 	if r.ContentType != "application/json" {
 		return nil, errors.New("The content type of the response is not 'application/json'")
 	}
