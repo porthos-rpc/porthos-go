@@ -69,11 +69,18 @@ func (c *call) withJSON(i interface{}) *call {
 
 // Async calls the remote method with the given arguments.
 // It returns a *Slot (which contains the response channel) and any possible error.
-func (c *call) Async() (*Slot, error) {
-	res := c.client.makeNewSlot()
+func (c *call) Async() (Slot, error) {
+	res := NewSlot()
 	correlationID := res.getCorrelationID()
+	ch, err := c.client.broker.openChannel()
 
-	err := c.client.channel.Publish(
+	if err != nil {
+		return nil, err
+	}
+
+	defer ch.Close()
+
+	err = ch.Publish(
 		"",                   // exchange
 		c.client.serviceName, // routing key
 		false,                // mandatory
