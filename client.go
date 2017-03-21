@@ -1,9 +1,7 @@
 package porthos
 
 import (
-	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
@@ -77,21 +75,13 @@ func (c *Client) processResponse(d amqp.Delivery) {
 
 	address := c.unmarshallCorrelationID(d.CorrelationId)
 
-	res := c.getSlot(address)
-
-	func() {
-		res.mutex.Lock()
-		defer res.mutex.Unlock()
-
-		if !res.closed {
-			res.responseChannel <- ClientResponse{
-				Content:     d.Body,
-				ContentType: d.ContentType,
-				StatusCode:  d.Headers["statusCode"].(int16),
-				Headers:     d.Headers,
-			}
-		}
-	}()
+	res := getSlot(address)
+	res.SendResponse(ClientResponse{
+		Content:     d.Body,
+		ContentType: d.ContentType,
+		StatusCode:  d.Headers["statusCode"].(int16),
+		Headers:     d.Headers,
+	})
 }
 
 // Call prepares a remote call.
@@ -104,12 +94,8 @@ func (c *Client) Close() {
 	c.channel.Close()
 }
 
-func (c *Client) getSlot(address uintptr) *Slot {
-	return (*Slot)(unsafe.Pointer(uintptr(address)))
-}
-
-func (c *Client) makeNewSlot() *Slot {
-	return &Slot{make(chan ClientResponse), false, new(sync.Mutex)}
+func (c *Client) createSlot() Slot {
+	return NewSlot()
 }
 
 func (c *Client) unmarshallCorrelationID(correlationID string) uintptr {

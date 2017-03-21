@@ -7,9 +7,9 @@ import (
 )
 
 func TestGetCorrelationId(t *testing.T) {
-	slot := Slot{}
+	slot := SlotImpl{}
 
-	pointerStr := slot.getCorrelationID()
+	pointerStr := slot.GetCorrelationID()
 
 	var intptr uintptr
 	size := unsafe.Sizeof(intptr)

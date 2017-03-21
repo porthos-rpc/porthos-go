@@ -63,8 +63,8 @@ func main() {
 	wg.Wait()
 
 	// call a remote method that returns the value right away.
-	response, _ = userService.Call("doSomethingElse").WithMap(porthos.Map{"someField": 10}).Sync()
+	response, _ = userService.Call("doSomethingThatReturnsValue").WithMap(porthos.Map{"value": 10}).Sync()
 	jsonResponse, _ = response.UnmarshalJSON()
-	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["value_plus_one"])
+	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: ", jsonResponse["value_plus_one"])
 
 }

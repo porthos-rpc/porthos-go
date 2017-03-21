@@ -22,25 +22,26 @@ func TestNewServer(t *testing.T) {
 	}
 
 	userService, err := NewServer(broker, "UserService", Options{false})
+	s := userService.(*server)
 	defer userService.Close()
 
 	if err != nil {
 		t.Fatal("NewServer failed.", err)
 	}
 
-	if userService.serviceName != "UserService" {
-		t.Errorf("Wrong serviceName, expected: 'UserService', got: '%s'", userService.serviceName)
+	if s.serviceName != "UserService" {
+		t.Errorf("Wrong serviceName, expected: 'UserService', got: '%s'", s.serviceName)
 	}
 
-	if userService.channel == nil {
+	if s.channel == nil {
 		t.Error("Service channel is nil.")
 	}
 
-	if userService.requestChannel == nil {
+	if s.requestChannel == nil {
 		t.Error("Service requestChannel is nil.")
 	}
 
-	if userService.methods == nil {
+	if s.methods == nil {
 		t.Error("Service methods is nil.")
 	}
 }
@@ -53,6 +54,7 @@ func TestServerProcessRequest(t *testing.T) {
 	}
 
 	userService, err := NewServer(b, "UserService", Options{false})
+	s := userService.(*server)
 	defer userService.Close()
 
 	if err != nil {
@@ -75,14 +77,14 @@ func TestServerProcessRequest(t *testing.T) {
 	body, _ := json.Marshal([]interface{}{10})
 
 	// declare the response queue.
-	q, err := userService.channel.QueueDeclare("", false, false, true, false, nil)
+	q, err := s.channel.QueueDeclare("", false, false, true, false, nil)
 
 	if err != nil {
 		t.Fatal("Queue declare failed.", err)
 	}
 
 	// start consuming from the response queue.
-	dc, err := userService.channel.Consume(
+	dc, err := s.channel.Consume(
 		q.Name, // queue
 		"",     // consumer
 		true,   // auto-ack
@@ -97,9 +99,9 @@ func TestServerProcessRequest(t *testing.T) {
 	}
 
 	// publish the request.
-	err = userService.channel.Publish(
+	err = s.channel.Publish(
 		"",
-		userService.serviceName,
+		s.serviceName,
 		false,
 		false,
 		amqp.Publishing{

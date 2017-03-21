@@ -12,7 +12,28 @@ import (
 type MethodHandler func(req Request, res Response)
 
 // Server is used to register procedures to be invoked remotely.
-type Server struct {
+type Server interface {
+	// Register a method and its handler.
+	Register(method string, handler MethodHandler)
+	// AddExtension adds extensions to the server instance.
+	// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
+	AddExtension(ext *Extension)
+	// ListenAndServe start serving RPC requests.
+	ListenAndServe()
+	// Close the client and AMQP channel.
+	// This method returns right after the AMQP channel is closed.
+	// In order to give time to the current request to finish (if there's one)
+	// it's up to you to wait using the NotifyClose.
+	Close()
+	// Shutdown shuts down the client and AMQP channel.
+	// It provider graceful shutdown, since it will wait the result
+	// of <-s.NotifyClose().
+	Shutdown()
+	// NotifyClose returns a channel to be notified then this server closes.
+	NotifyClose() <-chan bool
+}
+
+type server struct {
 	m              sync.Mutex
 	broker         *Broker
 	serviceName    string
@@ -35,8 +56,8 @@ type Options struct {
 var servePollInterval = 500 * time.Millisecond
 
 // NewServer creates a new instance of Server, responsible for executing remote calls.
-func NewServer(b *Broker, serviceName string, options Options) (*Server, error) {
-	s := &Server{
+func NewServer(b *Broker, serviceName string, options Options) (Server, error) {
+	s := &server{
 		broker:      b,
 		serviceName: serviceName,
 		methods:     make(map[string]MethodHandler),
@@ -54,7 +75,7 @@ func NewServer(b *Broker, serviceName string, options Options) (*Server, error) 
 	return s, nil
 }
 
-func (s *Server) setupTopology() error {
+func (s *server) setupTopology() error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -100,7 +121,7 @@ func (s *Server) setupTopology() error {
 	return nil
 }
 
-func (s *Server) handleReestablishedConnnection() {
+func (s *server) handleReestablishedConnnection() {
 	notifyCh := s.broker.NotifyReestablish()
 
 	for !s.closed {
@@ -114,7 +135,7 @@ func (s *Server) handleReestablishedConnnection() {
 	}
 }
 
-func (s *Server) serve() {
+func (s *server) serve() {
 	for !s.closed {
 		if s.topologySet {
 			s.printRegisteredMethods()
@@ -136,7 +157,7 @@ func (s *Server) serve() {
 	}
 }
 
-func (s *Server) printRegisteredMethods() {
+func (s *server) printRegisteredMethods() {
 	log.Info("[%s]", s.serviceName)
 
 	for method := range s.methods {
@@ -144,7 +165,7 @@ func (s *Server) printRegisteredMethods() {
 	}
 }
 
-func (s *Server) processRequest(d amqp.Delivery) {
+func (s *server) processRequest(d amqp.Delivery) {
 	methodName := d.Headers["X-Method"].(string)
 
 	if method, ok := s.methods[methodName]; ok {
@@ -168,7 +189,7 @@ func (s *Server) processRequest(d amqp.Delivery) {
 	}
 }
 
-func (s *Server) pipeThroughIncomingExtensions(req Request) {
+func (s *server) pipeThroughIncomingExtensions(req Request) {
 	for _, ext := range s.extensions {
 		if ext.incoming != nil {
 			ext.incoming <- IncomingRPC{req}
@@ -176,7 +197,7 @@ func (s *Server) pipeThroughIncomingExtensions(req Request) {
 	}
 }
 
-func (s *Server) pipeThroughOutgoingExtensions(req Request, res Response, responseTime time.Duration) {
+func (s *server) pipeThroughOutgoingExtensions(req Request, res Response, responseTime time.Duration) {
 	for _, ext := range s.extensions {
 		if ext.outgoing != nil {
 			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.GetStatusCode()}
@@ -184,8 +205,7 @@ func (s *Server) pipeThroughOutgoingExtensions(req Request, res Response, respon
 	}
 }
 
-// Register a method and its handler.
-func (s *Server) Register(method string, handler MethodHandler) {
+func (s *server) Register(method string, handler MethodHandler) {
 	s.methods[method] = func(req Request, res Response) {
 		s.pipeThroughIncomingExtensions(req)
 
@@ -198,30 +218,20 @@ func (s *Server) Register(method string, handler MethodHandler) {
 	}
 }
 
-// AddExtension adds extensions to the server instance.
-// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
-func (s *Server) AddExtension(ext *Extension) {
+func (s *server) AddExtension(ext *Extension) {
 	s.extensions = append(s.extensions, ext)
 }
 
-// ListenAndServe start serving RPC requests.
-func (s *Server) ListenAndServe() {
+func (s *server) ListenAndServe() {
 	s.serve()
 }
 
-// Close the client and AMQP channel.
-// This method returns right after the AMQP channel is closed.
-// In order to give time to the current request to finish (if there's one)
-// it's up to you to wait using the NotifyClose.
-func (s *Server) Close() {
+func (s *server) Close() {
 	s.closed = true
 	s.channel.Close()
 }
 
-// Shutdown shuts down the client and AMQP channel.
-// It provider graceful shutdown, since it will wait the result
-// of <-s.NotifyClose().
-func (s *Server) Shutdown() {
+func (s *server) Shutdown() {
 	ch := make(chan bool)
 
 	go func() {
@@ -232,8 +242,7 @@ func (s *Server) Shutdown() {
 	<-ch
 }
 
-// NotifyClose returns a channel to be notified then this server closes.
-func (s *Server) NotifyClose() <-chan bool {
+func (s *server) NotifyClose() <-chan bool {
 	receiver := make(chan bool)
 	s.closes = append(s.closes, receiver)
 
