@@ -14,6 +14,7 @@ type Client struct {
 	channel         *amqp.Channel
 	deliveryChannel <-chan amqp.Delivery
 	responseQueue   *amqp.Queue
+	broker          *Broker
 }
 
 // NewClient creates a new instance of Client, responsible for making remote calls.
@@ -53,6 +54,7 @@ func NewClient(b *Broker, serviceName string, defaultTTL time.Duration) (*Client
 		ch,
 		dc,
 		&q,
+		b,
 	}
 
 	c.start()
@@ -76,7 +78,7 @@ func (c *Client) processResponse(d amqp.Delivery) {
 	address := c.unmarshallCorrelationID(d.CorrelationId)
 
 	res := getSlot(address)
-	res.SendResponse(ClientResponse{
+	res.sendResponse(ClientResponse{
 		Content:     d.Body,
 		ContentType: d.ContentType,
 		StatusCode:  d.Headers["statusCode"].(int16),
@@ -92,10 +94,6 @@ func (c *Client) Call(method string) *call {
 // Close the client and AMQP chanel.
 func (c *Client) Close() {
 	c.channel.Close()
-}
-
-func (c *Client) createSlot() Slot {
-	return NewSlot()
 }
 
 func (c *Client) unmarshallCorrelationID(correlationID string) uintptr {

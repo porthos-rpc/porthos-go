@@ -11,27 +11,23 @@ type Slot interface {
 	ResponseChannel() <-chan ClientResponse
 	// Dispose response resources.
 	Dispose()
-	// Retuns the correlation id
-	GetCorrelationID() string
-	// Send ClientResponse to slot
-	SendResponse(c ClientResponse)
 }
 
-type SlotImpl struct {
+type slot struct {
 	responseChannel chan ClientResponse
 	closed          bool
 	mutex           *sync.Mutex
 }
 
-func (slot *SlotImpl) GetCorrelationID() string {
+func (slot *slot) getCorrelationID() string {
 	return string(UintptrToBytes((uintptr)(unsafe.Pointer(slot))))
 }
 
-func (slot *SlotImpl) ResponseChannel() <-chan ClientResponse {
+func (slot *slot) ResponseChannel() <-chan ClientResponse {
 	return slot.responseChannel
 }
 
-func (slot *SlotImpl) Dispose() {
+func (slot *slot) Dispose() {
 	slot.mutex.Lock()
 	defer slot.mutex.Unlock()
 
@@ -41,7 +37,7 @@ func (slot *SlotImpl) Dispose() {
 	}
 }
 
-func (slot *SlotImpl) SendResponse(c ClientResponse) {
+func (slot *slot) sendResponse(c ClientResponse) {
 	slot.mutex.Lock()
 	defer slot.mutex.Unlock()
 
@@ -50,10 +46,10 @@ func (slot *SlotImpl) SendResponse(c ClientResponse) {
 	}
 }
 
-func NewSlot() Slot {
-	return &SlotImpl{make(chan ClientResponse), false, new(sync.Mutex)}
+func NewSlot() *slot {
+	return &slot{make(chan ClientResponse), false, new(sync.Mutex)}
 }
 
-func getSlot(address uintptr) Slot {
-	return (*SlotImpl)(unsafe.Pointer(uintptr(address)))
+func getSlot(address uintptr) *slot {
+	return (*slot)(unsafe.Pointer(uintptr(address)))
 }

@@ -170,13 +170,20 @@ func (s *server) processRequest(d amqp.Delivery) {
 
 	if method, ok := s.methods[methodName]; ok {
 		req := &request{s.serviceName, methodName, d.ContentType, d.Body}
+		ch, err := s.broker.openChannel()
 
-		resWriter := &responseWriter{delivery: d, channel: s.channel, autoAck: s.autoAck}
+		if err != nil {
+			log.Error("Error opening channel for response: '%s'", err)
+		}
+
+		defer ch.Close()
+
+		resWriter := &responseWriter{delivery: d, channel: ch, autoAck: s.autoAck}
 
 		res := newResponse()
 		method(req, res)
 
-		err := resWriter.Write(res)
+		err = resWriter.Write(res)
 
 		if err != nil {
 			log.Error("Error writing response: '%s'", err.Error())

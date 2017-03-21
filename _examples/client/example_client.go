@@ -44,7 +44,14 @@ func main() {
 	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func(idx int) {
-			ret, _ := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": idx}).Async()
+			ret, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": idx}).Async()
+
+			if err != nil {
+				fmt.Println(err)
+				wg.Done()
+				return
+			}
+
 			defer ret.Dispose()
 
 			select {
@@ -63,8 +70,12 @@ func main() {
 	wg.Wait()
 
 	// call a remote method that returns the value right away.
-	response, _ = userService.Call("doSomethingThatReturnsValue").WithMap(porthos.Map{"value": 10}).Sync()
-	jsonResponse, _ = response.UnmarshalJSON()
-	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: ", jsonResponse["value_plus_one"])
+	response, err = userService.Call("doSomethingThatReturnsValue").WithMap(porthos.Map{"value": 10}).Sync()
+	if err == nil {
+		jsonResponse, _ = response.UnmarshalJSON()
+		fmt.Println("Service userService.doSomethingThatReturnsValue sync call: ", jsonResponse["value_plus_one"])
+	} else {
+		fmt.Println("error: ", err)
+	}
 
 }
