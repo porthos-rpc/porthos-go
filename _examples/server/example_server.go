@@ -58,7 +58,7 @@ func main() {
 
 		_ = req.Bind(&i)
 
-		res.JSON(porthos.OK, output{i.Value, i.Value + 1})
+		res.JSON(porthos.StatusOK, output{i.Value, i.Value + 1})
 	})
 
 	userService.ListenAndServe()
