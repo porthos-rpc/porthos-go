@@ -7,9 +7,9 @@ import (
 )
 
 func TestGetCorrelationId(t *testing.T) {
-	slot := SlotImpl{}
+	s := slot{}
 
-	pointerStr := slot.GetCorrelationID()
+	pointerStr := s.getCorrelationID()
 
 	var intptr uintptr
 	size := unsafe.Sizeof(intptr)
@@ -20,7 +20,7 @@ func TestGetCorrelationId(t *testing.T) {
 		intptr = uintptr(binary.LittleEndian.Uint64([]byte(pointerStr)))
 	}
 
-	if intptr != (uintptr)(unsafe.Pointer(&slot)) {
+	if intptr != (uintptr)(unsafe.Pointer(&s)) {
 		t.Errorf("Invalid correlation Id")
 	}
 }
