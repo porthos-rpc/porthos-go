@@ -96,9 +96,9 @@ func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) *Extensi
 		buffer:  make([]*metricEntry, config.BufferSize, config.BufferSize),
 	}
 
-	go func() {
-		log.Info("Metrics shipper extension is waiting for outgoing events...")
+	log.Info("Metrics shipper extension is waiting for outgoing events...")
 
+	go func() {
 		for {
 			out := <-ext.Outgoing()
 
