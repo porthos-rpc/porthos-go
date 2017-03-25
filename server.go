@@ -15,6 +15,8 @@ type MethodHandler func(req Request, res Response)
 type Server interface {
 	// Register a method and its handler.
 	Register(method string, handler MethodHandler)
+	// Register a method and its handler.
+	RegisterWithSpec(method string, handler MethodHandler, spec Spec)
 	// AddExtension adds extensions to the server instance.
 	// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
 	AddExtension(ext *Extension)
@@ -40,6 +42,7 @@ type server struct {
 	channel        *amqp.Channel
 	requestChannel <-chan amqp.Delivery
 	methods        map[string]MethodHandler
+	specs          map[string]Spec
 	autoAck        bool
 	extensions     []*Extension
 	topologySet    bool
@@ -61,6 +64,7 @@ func NewServer(b *Broker, serviceName string, options Options) (Server, error) {
 		broker:      b,
 		serviceName: serviceName,
 		methods:     make(map[string]MethodHandler),
+		specs:       make(map[string]Spec),
 		autoAck:     options.AutoAck,
 	}
 
@@ -162,6 +166,11 @@ func (s *server) printRegisteredMethods() {
 
 	for method := range s.methods {
 		log.Info(". %s", method)
+
+		if spec, ok := s.specs[method]; ok {
+			log.Info("    Content-Type: %s", spec.ContentType)
+			log.Info("    Body: %s", spec.Body)
+		}
 	}
 }
 
@@ -223,6 +232,11 @@ func (s *server) Register(method string, handler MethodHandler) {
 
 		s.pipeThroughOutgoingExtensions(req, res, time.Since(started))
 	}
+}
+
+func (s *server) RegisterWithSpec(method string, handler MethodHandler, spec Spec) {
+	s.Register(method, handler)
+	s.specs[method] = spec
 }
 
 func (s *server) AddExtension(ext *Extension) {
