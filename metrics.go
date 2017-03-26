@@ -10,11 +10,6 @@ import (
 
 const metricsQueueName = "porthos.metrics"
 
-// MetricsShipperConfig defines config params for the NewMetricsShipperExtension.
-type MetricsShipperConfig struct {
-	BufferSize int
-}
-
 type metricEntry struct {
 	ServiceName  string        `json:"serviceName"`
 	MethodName   string        `json:"methodName"`
@@ -71,10 +66,34 @@ func (mc *metricsCollector) ship() {
 	}
 }
 
-// NewMetricsShipperExtension creates a new extension that collect stats from RPC calls (request and response)
-func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) *Extension {
-	ext := NewOutgoingOnlyExtension()
+// MetricsShipperConfig defines config params for the NewMetricsShipperExtension.
+type MetricsShipperConfig struct {
+	BufferSize int
+}
 
+// MetricsShipperExtension logs incoming requests and outgoing responses.
+type MetricsShipperExtension struct {
+	mc *metricsCollector
+}
+
+// ServerListening this is not implemented in this extension.
+func (a *MetricsShipperExtension) ServerListening(server *Server) {}
+
+// IncomingRequest this is not implemented in this extension.
+func (a *MetricsShipperExtension) IncomingRequest(req Request) {}
+
+// OutgoingResponse ships metrics based on responses to the broker.
+func (a *MetricsShipperExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int16) {
+	a.mc.append(&metricEntry{req.GetServiceName(), req.GetMethodName(), resTime, statusCode})
+
+	if a.mc.isFull() {
+		a.mc.ship()
+		a.mc.reset()
+	}
+}
+
+// NewMetricsShipperExtension creates a new extension that logs everything to stdout.
+func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) Extension {
 	ch, err := b.openChannel()
 
 	if err != nil {
@@ -91,25 +110,10 @@ func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) *Extensi
 		nil,              // arguments
 	)
 
-	mc := metricsCollector{
-		channel: ch,
-		buffer:  make([]*metricEntry, config.BufferSize, config.BufferSize),
-	}
-
 	log.Info("Metrics shipper extension is waiting for outgoing events...")
 
-	go func() {
-		for {
-			out := <-ext.Outgoing()
-
-			mc.append(&metricEntry{out.Request.GetServiceName(), out.Request.GetMethodName(), out.ResponseTime, out.StatusCode})
-
-			if mc.isFull() {
-				mc.ship()
-				mc.reset()
-			}
-		}
-	}()
-
-	return ext
+	return &MetricsShipperExtension{&metricsCollector{
+		channel: ch,
+		buffer:  make([]*metricEntry, config.BufferSize, config.BufferSize),
+	}}
 }

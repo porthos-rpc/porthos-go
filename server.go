@@ -19,7 +19,7 @@ type Server interface {
 	RegisterWithSpec(method string, handler MethodHandler, spec Spec)
 	// AddExtension adds extensions to the server instance.
 	// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
-	AddExtension(ext *Extension)
+	AddExtension(ext Extension)
 	// ListenAndServe start serving RPC requests.
 	ListenAndServe()
 	// Close the client and AMQP channel.
@@ -44,7 +44,7 @@ type server struct {
 	methods        map[string]MethodHandler
 	specs          map[string]Spec
 	autoAck        bool
-	extensions     []*Extension
+	extensions     []Extension
 	topologySet    bool
 
 	closed bool
@@ -207,17 +207,13 @@ func (s *server) processRequest(d amqp.Delivery) {
 
 func (s *server) pipeThroughIncomingExtensions(req Request) {
 	for _, ext := range s.extensions {
-		if ext.incoming != nil {
-			ext.incoming <- IncomingRPC{req}
-		}
+		ext.IncomingRequest(req)
 	}
 }
 
 func (s *server) pipeThroughOutgoingExtensions(req Request, res Response, responseTime time.Duration) {
 	for _, ext := range s.extensions {
-		if ext.outgoing != nil {
-			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.GetStatusCode()}
-		}
+		ext.OutgoingResponse(req, res, responseTime, res.GetStatusCode())
 	}
 }
 
@@ -239,7 +235,7 @@ func (s *server) RegisterWithSpec(method string, handler MethodHandler, spec Spe
 	s.specs[method] = spec
 }
 
-func (s *server) AddExtension(ext *Extension) {
+func (s *server) AddExtension(ext Extension) {
 	s.extensions = append(s.extensions, ext)
 }
 
