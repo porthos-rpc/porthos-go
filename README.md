@@ -120,6 +120,12 @@ userService.AddExtension(porthos.NewMetricsShipperExtension(broker, porthos.Metr
 userService.AddExtension(NewAccessLogExtension())
 ```
 
+#### Specs Shipper Extension
+
+```go
+userService.AddExtension(porthos.NewSpecShipperExtension(broker))
+```
+
 ## Contributing
 Please read the [contributing guide](CONTRIBUTING.md)
 
