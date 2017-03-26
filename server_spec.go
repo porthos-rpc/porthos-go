@@ -14,16 +14,21 @@ type BodySpecMap map[string]interface{}
 // BodySpecFromStruct creates a body spec from a struct value.
 // You just have to pass an "instance" of your struct.
 func BodySpecFromStruct(structValue interface{}) BodySpecMap {
+	return BodySpecFromStructType(reflect.ValueOf(structValue).Type())
+}
+
+// BodySpecFromStructType creates a body spec from a struct type (reflect).
+func BodySpecFromStructType(s reflect.Type) BodySpecMap {
 	spec := BodySpecMap{}
 
-	s := reflect.ValueOf(structValue)
-	t := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		jsonField := t.Field(i).Tag.Get("json")
+		jsonField := f.Tag.Get("json")
 
-		if jsonField != "" {
-			spec[jsonField] = f.Type()
+		if f.Type.Kind() == reflect.Struct {
+			spec[jsonField] = BodySpecFromStructType(f.Type)
+		} else {
+			spec[jsonField] = f.Type
 		}
 	}
 
