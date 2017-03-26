@@ -11,7 +11,7 @@ type AccessLogExtension struct {
 }
 
 // ServerListening this is not implemented in this extension.
-func (a *AccessLogExtension) ServerListening(server *Server) {}
+func (a *AccessLogExtension) ServerListening(server Server) {}
 
 // IncomingRequest logs rpc request method and arguments.
 func (a *AccessLogExtension) IncomingRequest(req Request) {

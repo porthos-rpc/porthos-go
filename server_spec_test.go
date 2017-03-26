@@ -1,9 +1,20 @@
 package porthos
 
 import (
-	"reflect"
 	"testing"
 )
+
+func TestBodySpecSimple(t *testing.T) {
+	type X struct {
+		Value int `json:"value"`
+	}
+
+	bodySpec := BodySpecFromStruct(X{})
+
+	if bodySpec["value"].(string) != "int" {
+		t.Errorf("Expected type of value was int, got %s", bodySpec["value"])
+	}
+}
 
 func TestBodySpecFromStruct(t *testing.T) {
 	type X struct {
@@ -20,23 +31,23 @@ func TestBodySpecFromStruct(t *testing.T) {
 
 	bodySpec := BodySpecFromStruct(Y{})
 
-	if bodySpec["original_value"].(reflect.Type).Kind() != reflect.Int {
+	if bodySpec["original_value"].(string) != "int" {
 		t.Errorf("Expected type of original_value was int, got %s", bodySpec["original_value"])
 	}
 
-	if bodySpec["value_plus_one"].(reflect.Type).Kind() != reflect.Int32 {
+	if bodySpec["value_plus_one"].(string) != "int32" {
 		t.Errorf("Expected type of value_plus_one was int32, got %s", bodySpec["value_plus_one"])
 	}
 
-	if bodySpec["str_arg"].(reflect.Type).Kind() != reflect.String {
+	if bodySpec["str_arg"].(string) != "string" {
 		t.Errorf("Expected type of str_arg was string, got %s", bodySpec["str_arg"])
 	}
 
-	if bodySpec["bool_arg"].(reflect.Type).Kind() != reflect.Bool {
+	if bodySpec["bool_arg"].(string) != "bool" {
 		t.Errorf("Expected type of bool_arg was bool, got %s", bodySpec["bool_arg"])
 	}
 
-	if bodySpec["struct_arg"].(BodySpecMap)["float_arg"].(reflect.Type).Kind() != reflect.Float32 {
+	if bodySpec["struct_arg"].(BodySpecMap)["float_arg"].(string) != "float32" {
 		t.Errorf("Expected type of struct_arg/float_arg was float32, got %s", bodySpec["struct_arg"].(BodySpecMap)["float_arg"])
 	}
 }

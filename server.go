@@ -142,6 +142,7 @@ func (s *server) handleReestablishedConnnection() {
 func (s *server) serve() {
 	for !s.closed {
 		if s.topologySet {
+			s.pipeThroughServerListeningExtensions()
 			s.printRegisteredMethods()
 
 			log.Info("Connected to the broker and waiting for incoming rpc requests...")
@@ -202,6 +203,12 @@ func (s *server) processRequest(d amqp.Delivery) {
 		if !s.autoAck {
 			d.Reject(false)
 		}
+	}
+}
+
+func (s *server) pipeThroughServerListeningExtensions() {
+	for _, ext := range s.extensions {
+		ext.ServerListening(s)
 	}
 }
 

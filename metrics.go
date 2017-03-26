@@ -77,7 +77,7 @@ type MetricsShipperExtension struct {
 }
 
 // ServerListening this is not implemented in this extension.
-func (a *MetricsShipperExtension) ServerListening(server *Server) {}
+func (a *MetricsShipperExtension) ServerListening(server Server) {}
 
 // IncomingRequest this is not implemented in this extension.
 func (a *MetricsShipperExtension) IncomingRequest(req Request) {}

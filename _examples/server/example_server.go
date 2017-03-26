@@ -61,6 +61,9 @@ func main() {
 	// create and add the access log extension.
 	userService.AddExtension(porthos.NewAccessLogExtension())
 
+	// create and add the specs shipper extension.
+	userService.AddExtension(porthos.NewSpecShipperExtension(b))
+
 	// dummy example procedure.
 	userService.Register("doSomething", doSomething)
 
@@ -68,7 +71,7 @@ func main() {
 	userService.RegisterWithSpec("doSomethingElse", doSomethingElseHandler, porthos.Spec{
 		ContentType: "application/json",
 		Body: porthos.BodySpecMap{
-			"value": "float",
+			"value": "float32",
 		},
 	})
 

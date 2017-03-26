@@ -28,7 +28,7 @@ func BodySpecFromStructType(s reflect.Type) BodySpecMap {
 		if f.Type.Kind() == reflect.Struct {
 			spec[jsonField] = BodySpecFromStructType(f.Type)
 		} else {
-			spec[jsonField] = f.Type
+			spec[jsonField] = f.Type.Name()
 		}
 	}
 
