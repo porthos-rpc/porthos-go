@@ -37,12 +37,14 @@ func (s *SpecShipperExtension) ServerListening(srv Server) {
 
 	if err != nil {
 		log.Error("Error declaring the specs queue", err)
+		return
 	}
 
 	payload, err := json.Marshal(srv.(*server).specs)
 
 	if err != nil {
 		log.Error("Error creating specs payload", err)
+		return
 	}
 
 	err = ch.Publish(
