@@ -10,6 +10,11 @@ import (
 
 const specsQueueName = "porthos.specs"
 
+type specEntry struct {
+	Service string          `json:"service"`
+	Specs   map[string]Spec `json:"specs"`
+}
+
 // SpecShipperExtension logs incoming requests and outgoing responses.
 type SpecShipperExtension struct {
 	b *Broker
@@ -40,7 +45,10 @@ func (s *SpecShipperExtension) ServerListening(srv Server) {
 		return
 	}
 
-	payload, err := json.Marshal(srv.(*server).specs)
+	payload, err := json.Marshal(specEntry{
+		Service: srv.GetServiceName(),
+		Specs:   srv.GetSpecs(),
+	})
 
 	if err != nil {
 		log.Error("Error creating specs payload", err)

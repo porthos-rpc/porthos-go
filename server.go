@@ -22,6 +22,10 @@ type Server interface {
 	AddExtension(ext Extension)
 	// ListenAndServe start serving RPC requests.
 	ListenAndServe()
+	// GetServiceName returns the name of this service.
+	GetServiceName() string
+	// GetSpecs returns all registered specs.
+	GetSpecs() map[string]Spec
 	// Close the client and AMQP channel.
 	// This method returns right after the AMQP channel is closed.
 	// In order to give time to the current request to finish (if there's one)
@@ -240,6 +244,16 @@ func (s *server) Register(method string, handler MethodHandler) {
 func (s *server) RegisterWithSpec(method string, handler MethodHandler, spec Spec) {
 	s.Register(method, handler)
 	s.specs[method] = spec
+}
+
+// GetServiceName returns the name of this service.
+func (s *server) GetServiceName() string {
+	return s.serviceName
+}
+
+// GetSpecs returns all registered specs.
+func (s *server) GetSpecs() map[string]Spec {
+	return s.specs
 }
 
 func (s *server) AddExtension(ext Extension) {

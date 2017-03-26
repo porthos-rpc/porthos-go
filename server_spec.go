@@ -4,8 +4,8 @@ import "reflect"
 
 // Spec to a remote procedure.
 type Spec struct {
-	ContentType string
-	Body        BodySpecMap
+	ContentType string      `json:"contentType"`
+	Body        BodySpecMap `json:"body"`
 }
 
 // BodySpecMap represents a body spec.
