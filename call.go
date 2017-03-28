@@ -39,6 +39,14 @@ func (c *call) WithBody(body []byte) *call {
 	return c
 }
 
+// WithBody defines the given bytes array as the request body.
+func (c *call) WithBodyContentType(body []byte, contentType string) *call {
+	c.body = body
+	c.contentType = contentType
+
+	return c
+}
+
 // WitArgs defines the given args as the request body.
 func (c *call) WithArgs(args ...interface{}) *call {
 	return c.withJSON(args)

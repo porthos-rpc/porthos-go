@@ -15,11 +15,17 @@ type MethodHandler func(req Request, res Response)
 type Server interface {
 	// Register a method and its handler.
 	Register(method string, handler MethodHandler)
+	// Register a method and its handler.
+	RegisterWithSpec(method string, handler MethodHandler, spec Spec)
 	// AddExtension adds extensions to the server instance.
 	// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
-	AddExtension(ext *Extension)
+	AddExtension(ext Extension)
 	// ListenAndServe start serving RPC requests.
 	ListenAndServe()
+	// GetServiceName returns the name of this service.
+	GetServiceName() string
+	// GetSpecs returns all registered specs.
+	GetSpecs() map[string]Spec
 	// Close the client and AMQP channel.
 	// This method returns right after the AMQP channel is closed.
 	// In order to give time to the current request to finish (if there's one)
@@ -40,8 +46,9 @@ type server struct {
 	channel        *amqp.Channel
 	requestChannel <-chan amqp.Delivery
 	methods        map[string]MethodHandler
+	specs          map[string]Spec
 	autoAck        bool
-	extensions     []*Extension
+	extensions     []Extension
 	topologySet    bool
 
 	closed bool
@@ -61,6 +68,7 @@ func NewServer(b *Broker, serviceName string, options Options) (Server, error) {
 		broker:      b,
 		serviceName: serviceName,
 		methods:     make(map[string]MethodHandler),
+		specs:       make(map[string]Spec),
 		autoAck:     options.AutoAck,
 	}
 
@@ -138,6 +146,7 @@ func (s *server) handleReestablishedConnnection() {
 func (s *server) serve() {
 	for !s.closed {
 		if s.topologySet {
+			s.pipeThroughServerListeningExtensions()
 			s.printRegisteredMethods()
 
 			log.Info("Connected to the broker and waiting for incoming rpc requests...")
@@ -162,6 +171,11 @@ func (s *server) printRegisteredMethods() {
 
 	for method := range s.methods {
 		log.Info(". %s", method)
+
+		if spec, ok := s.specs[method]; ok {
+			log.Info("    Content-Type: %s", spec.ContentType)
+			log.Info("    Body: %s", spec.Body)
+		}
 	}
 }
 
@@ -196,19 +210,21 @@ func (s *server) processRequest(d amqp.Delivery) {
 	}
 }
 
+func (s *server) pipeThroughServerListeningExtensions() {
+	for _, ext := range s.extensions {
+		ext.ServerListening(s)
+	}
+}
+
 func (s *server) pipeThroughIncomingExtensions(req Request) {
 	for _, ext := range s.extensions {
-		if ext.incoming != nil {
-			ext.incoming <- IncomingRPC{req}
-		}
+		ext.IncomingRequest(req)
 	}
 }
 
 func (s *server) pipeThroughOutgoingExtensions(req Request, res Response, responseTime time.Duration) {
 	for _, ext := range s.extensions {
-		if ext.outgoing != nil {
-			ext.outgoing <- OutgoingRPC{req, res, responseTime, res.GetStatusCode()}
-		}
+		ext.OutgoingResponse(req, res, responseTime, res.GetStatusCode())
 	}
 }
 
@@ -225,7 +241,22 @@ func (s *server) Register(method string, handler MethodHandler) {
 	}
 }
 
-func (s *server) AddExtension(ext *Extension) {
+func (s *server) RegisterWithSpec(method string, handler MethodHandler, spec Spec) {
+	s.Register(method, handler)
+	s.specs[method] = spec
+}
+
+// GetServiceName returns the name of this service.
+func (s *server) GetServiceName() string {
+	return s.serviceName
+}
+
+// GetSpecs returns all registered specs.
+func (s *server) GetSpecs() map[string]Spec {
+	return s.specs
+}
+
+func (s *server) AddExtension(ext Extension) {
 	s.extensions = append(s.extensions, ext)
 }
 

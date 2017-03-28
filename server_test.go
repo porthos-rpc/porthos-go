@@ -54,12 +54,12 @@ func TestServerProcessRequest(t *testing.T) {
 	}
 
 	userService, err := NewServer(b, "UserService", Options{false})
-	s := userService.(*server)
-	defer userService.Close()
 
 	if err != nil {
 		t.Fatal("NewServer failed.", err)
 	}
+
+	defer userService.Close()
 
 	// register the method that we will test.
 	userService.Register("doSomething", func(req Request, res Response) {
@@ -76,15 +76,23 @@ func TestServerProcessRequest(t *testing.T) {
 	// create the request message body.
 	body, _ := json.Marshal([]interface{}{10})
 
+	ch, err := b.openChannel()
+
+	if err != nil {
+		t.Fatal("Queue declare failed.", err)
+	}
+
+	defer ch.Close()
+
 	// declare the response queue.
-	q, err := s.channel.QueueDeclare("", false, false, true, false, nil)
+	q, err := ch.QueueDeclare("", false, false, true, false, nil)
 
 	if err != nil {
 		t.Fatal("Queue declare failed.", err)
 	}
 
 	// start consuming from the response queue.
-	dc, err := s.channel.Consume(
+	dc, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
 		true,   // auto-ack
@@ -99,16 +107,15 @@ func TestServerProcessRequest(t *testing.T) {
 	}
 
 	// publish the request.
-	err = s.channel.Publish(
+	err = ch.Publish(
 		"",
-		s.serviceName,
+		"UserService",
 		false,
 		false,
 		amqp.Publishing{
 			Headers: amqp.Table{
 				"X-Method": "doSomething",
 			},
-			Expiration:    "3000",
 			ContentType:   "application/json",
 			CorrelationId: "1",
 			ReplyTo:       q.Name,

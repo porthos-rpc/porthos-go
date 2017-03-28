@@ -7,6 +7,33 @@ import (
 	"github.com/porthos-rpc/porthos-go/log"
 )
 
+type input struct {
+	Value int `json:"value"`
+}
+
+type output struct {
+	Original int `json:"original_value"`
+	Sum      int `json:"value_plus_one"`
+}
+
+func doSomething(req porthos.Request, res porthos.Response) {
+	// nothing to do yet.
+}
+
+func doSomethingElseHandler(req porthos.Request, res porthos.Response) {
+	m := make(map[string]int)
+	_ = req.Bind(&m)
+	log.Info("doSomethingElse with value %f", m["value"])
+}
+
+func doSomethingThatReturnsValue(req porthos.Request, res porthos.Response) {
+	var i input
+
+	_ = req.Bind(&i)
+
+	res.JSON(porthos.StatusOK, output{i.Value, i.Value + 1})
+}
+
 func main() {
 	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
 	defer b.Close()
@@ -34,31 +61,24 @@ func main() {
 	// create and add the access log extension.
 	userService.AddExtension(porthos.NewAccessLogExtension())
 
-	userService.Register("doSomething", func(req porthos.Request, res porthos.Response) {
-		// nothing to do yet.
+	// create and add the specs shipper extension.
+	userService.AddExtension(porthos.NewSpecShipperExtension(b))
+
+	// dummy example procedure.
+	userService.Register("doSomething", doSomething)
+
+	// procedure with a json map spec.
+	userService.RegisterWithSpec("doSomethingElse", doSomethingElseHandler, porthos.Spec{
+		ContentType: "application/json",
+		Body: porthos.BodySpecMap{
+			"value": "float32",
+		},
 	})
 
-	userService.Register("doSomethingElse", func(req porthos.Request, res porthos.Response) {
-		m := make(map[string]int)
-		_ = req.Bind(&m)
-		log.Info("doSomethingElse with value %f", m["value"])
-	})
-
-	userService.Register("doSomethingThatReturnsValue", func(req porthos.Request, res porthos.Response) {
-		type input struct {
-			Value int `json:"value"`
-		}
-
-		type output struct {
-			Original int `json:"original_value"`
-			Sum      int `json:"value_plus_one"`
-		}
-
-		var i input
-
-		_ = req.Bind(&i)
-
-		res.JSON(porthos.StatusOK, output{i.Value, i.Value + 1})
+	// procedure with a json struct spec.
+	userService.RegisterWithSpec("doSomethingThatReturnsValue", doSomethingThatReturnsValue, porthos.Spec{
+		ContentType: "application/json",
+		Body:        porthos.BodySpecFromStruct(input{}),
 	})
 
 	userService.ListenAndServe()
