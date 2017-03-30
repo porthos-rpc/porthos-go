@@ -9,6 +9,16 @@ server:
   volumes:
    - .:/go/src/github.com/porthos-rpc/porthos-go
   hostname: porthos
+playground:
+  image: porthos/porthos-playground
+  command: dockerize -wait tcp://broker:5672 -timeout 60s /go/src/github.com/porthos-rpc/porthos-playground/playground
+  links:
+   - broker
+  environment:
+    BROKER_URL: amqp://guest:guest@broker:5672/
+    BIND_ADDRESS: :8080
+  ports:
+   - "8080:8080"
 broker:
   image: rabbitmq:3.6-management
   ports:
