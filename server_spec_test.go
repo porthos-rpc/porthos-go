@@ -11,7 +11,7 @@ func TestBodySpecSimple(t *testing.T) {
 
 	bodySpec := BodySpecFromStruct(X{})
 
-	if bodySpec["value"].(string) != "int" {
+	if bodySpec["value"].Type != "int" {
 		t.Errorf("Expected type of value was int, got %s", bodySpec["value"])
 	}
 }
@@ -31,23 +31,23 @@ func TestBodySpecFromStruct(t *testing.T) {
 
 	bodySpec := BodySpecFromStruct(Y{})
 
-	if bodySpec["original_value"].(string) != "int" {
+	if bodySpec["original_value"].Type != "int" {
 		t.Errorf("Expected type of original_value was int, got %s", bodySpec["original_value"])
 	}
 
-	if bodySpec["value_plus_one"].(string) != "int32" {
+	if bodySpec["value_plus_one"].Type != "int32" {
 		t.Errorf("Expected type of value_plus_one was int32, got %s", bodySpec["value_plus_one"])
 	}
 
-	if bodySpec["str_arg"].(string) != "string" {
+	if bodySpec["str_arg"].Type != "string" {
 		t.Errorf("Expected type of str_arg was string, got %s", bodySpec["str_arg"])
 	}
 
-	if bodySpec["bool_arg"].(string) != "bool" {
+	if bodySpec["bool_arg"].Type != "bool" {
 		t.Errorf("Expected type of bool_arg was bool, got %s", bodySpec["bool_arg"])
 	}
 
-	if bodySpec["struct_arg"].(BodySpecMap)["float_arg"].(string) != "float32" {
-		t.Errorf("Expected type of struct_arg/float_arg was float32, got %s", bodySpec["struct_arg"].(BodySpecMap)["float_arg"])
+	if bodySpec["struct_arg"].Body["float_arg"].Type != "float32" {
+		t.Errorf("Expected type of struct_arg/float_arg was float32, got %s", bodySpec["struct_arg"].Body["float_arg"].Type)
 	}
 }
