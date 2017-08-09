@@ -8,7 +8,7 @@ import (
 )
 
 type input struct {
-	Value int `json:"value"`
+	Value int `json:"value" description:"Required"`
 }
 
 type output struct {
@@ -71,7 +71,7 @@ func main() {
 	userService.RegisterWithSpec("doSomethingElse", doSomethingElseHandler, porthos.Spec{
 		ContentType: "application/json",
 		Body: porthos.BodySpecMap{
-			"value": "float32",
+			"value": porthos.FieldSpec{Type: "float32", Description: "Required"},
 		},
 	})
 
