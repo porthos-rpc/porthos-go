@@ -4,14 +4,21 @@ import "reflect"
 
 // Spec to a remote procedure.
 type Spec struct {
+	Description string      `json:"description"`
+	Request     ContentSpec `json:"request"`
+	Response    ContentSpec `json:"response"`
+}
+
+// ContentSpec to a remote procedure.
+type ContentSpec struct {
 	ContentType string      `json:"contentType"`
 	Body        BodySpecMap `json:"body"`
 }
 
 // FieldSpec represents a spec of a body field.
 type FieldSpec struct {
-	Type        string      `json:type`
-	Description string      `json:description`
+	Type        string      `json:"type"`
+	Description string      `json:"description"`
 	Body        BodySpecMap `json:"body,omitempty"`
 }
 

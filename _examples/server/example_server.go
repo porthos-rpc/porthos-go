@@ -34,6 +34,14 @@ func doSomethingThatReturnsValue(req porthos.Request, res porthos.Response) {
 	res.JSON(porthos.StatusOK, output{i.Value, i.Value + 1})
 }
 
+func doSomethingWithEmptyResponse(req porthos.Request, res porthos.Response) {
+	var i input
+
+	_ = req.Bind(&i)
+
+	res.Empty(porthos.StatusOK)
+}
+
 func main() {
 	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
 	defer b.Close()
@@ -69,16 +77,33 @@ func main() {
 
 	// procedure with a json map spec.
 	userService.RegisterWithSpec("doSomethingElse", doSomethingElseHandler, porthos.Spec{
-		ContentType: "application/json",
-		Body: porthos.BodySpecMap{
-			"value": porthos.FieldSpec{Type: "float32", Description: "Required"},
+		Description: "Here you can inform some description of your method",
+		Request: porthos.ContentSpec{
+			ContentType: "application/json",
+			Body: porthos.BodySpecMap{
+				"value": porthos.FieldSpec{Type: "float32", Description: "Required"},
+			},
 		},
 	})
 
 	// procedure with a json struct spec.
 	userService.RegisterWithSpec("doSomethingThatReturnsValue", doSomethingThatReturnsValue, porthos.Spec{
-		ContentType: "application/json",
-		Body:        porthos.BodySpecFromStruct(input{}),
+		Request: porthos.ContentSpec{
+			ContentType: "application/json",
+			Body:        porthos.BodySpecFromStruct(input{}),
+		},
+		Response: porthos.ContentSpec{
+			ContentType: "application/json",
+			Body:        porthos.BodySpecFromStruct(output{}),
+		},
+	})
+
+	// procedure with a json struct spec.
+	userService.RegisterWithSpec("doSomethingWithEmptyResponse", doSomethingWithEmptyResponse, porthos.Spec{
+		Request: porthos.ContentSpec{
+			ContentType: "application/json",
+			Body:        porthos.BodySpecFromStruct(input{}),
+		},
 	})
 
 	userService.ListenAndServe()

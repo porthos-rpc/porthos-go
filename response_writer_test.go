@@ -34,17 +34,17 @@ func TestResponseWriterJSON(t *testing.T) {
 	rw.Write(response)
 
 	select {
-	case response := <-dc:
-		if response.Headers["statusCode"].(int16) != 200 {
-			t.Errorf("Expected status code was 200, got: %d", response.Headers["statusCode"])
+	case amqpResponse := <-dc:
+		if amqpResponse.Headers["statusCode"].(string) != "200" {
+			t.Errorf("Expected status code was 200, got: %d", amqpResponse.Headers["statusCode"])
 		}
 
-		if response.ContentType != "application/json" {
-			t.Errorf("Expected content type application/json, got: %s", response.ContentType)
+		if amqpResponse.ContentType != "application/json" {
+			t.Errorf("Expected content type application/json, got: %s", amqpResponse.ContentType)
 		}
 
 		var responseTest ResponseExample
-		json.Unmarshal(response.Body, &responseTest)
+		json.Unmarshal(amqpResponse.Body, &responseTest)
 
 		if responseTest.Sum != 10 {
 			t.Errorf("Response failed, expected: 10, got: %s", responseTest.Sum)
@@ -78,7 +78,7 @@ func TestResponseWriterRaw(t *testing.T) {
 
 	select {
 	case response := <-dc:
-		if response.Headers["statusCode"].(int16) != 201 {
+		if response.Headers["statusCode"].(string) != "201" {
 			t.Errorf("Expected status code was 201, got: %d", response.Headers["statusCode"])
 		}
 
@@ -118,7 +118,7 @@ func TestResponseWriterEmpty(t *testing.T) {
 
 	select {
 	case response := <-dc:
-		if response.Headers["statusCode"].(int16) != 202 {
+		if response.Headers["statusCode"].(string) != "202" {
 			t.Errorf("Expected status code was 202, got: %d", response.Headers["statusCode"])
 		}
 
