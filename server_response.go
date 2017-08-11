@@ -7,15 +7,15 @@ import (
 // Response represents a rpc response.
 type Response interface {
 	// JSON sets the content of the response as JSON data.
-	JSON(statusCode int16, body interface{})
+	JSON(statusCode int32, body interface{})
 	// Raw sets the content of the response as an array of bytes.
-	Raw(statusCode int16, contentType string, body []byte)
+	Raw(statusCode int32, contentType string, body []byte)
 	// Empty leaves the content of the response as empty.
-	Empty(statusCode int16)
+	Empty(statusCode int32)
 	// GetHeaders returns the response headers.
 	GetHeaders() *Headers
 	// GetStatusCode returns the response status.
-	GetStatusCode() int16
+	GetStatusCode() int32
 	GetBody() []byte
 	GetContentType() string
 }
@@ -23,7 +23,7 @@ type Response interface {
 type response struct {
 	body        []byte
 	contentType string
-	statusCode  int16
+	statusCode  int32
 	headers     *Headers
 }
 
@@ -33,7 +33,7 @@ func newResponse() Response {
 	}
 }
 
-func (r *response) JSON(statusCode int16, body interface{}) {
+func (r *response) JSON(statusCode int32, body interface{}) {
 	if body == nil {
 		panic("Response body is empty")
 	}
@@ -49,7 +49,7 @@ func (r *response) JSON(statusCode int16, body interface{}) {
 	r.contentType = "application/json"
 }
 
-func (r *response) Raw(statusCode int16, contentType string, body []byte) {
+func (r *response) Raw(statusCode int32, contentType string, body []byte) {
 	if body == nil {
 		panic("Response body is empty")
 	}
@@ -59,7 +59,7 @@ func (r *response) Raw(statusCode int16, contentType string, body []byte) {
 	r.contentType = contentType
 }
 
-func (r *response) Empty(statusCode int16) {
+func (r *response) Empty(statusCode int32) {
 	r.statusCode = statusCode
 }
 
@@ -67,7 +67,7 @@ func (r *response) GetHeaders() *Headers {
 	return r.headers
 }
 
-func (r *response) GetStatusCode() int16 {
+func (r *response) GetStatusCode() int32 {
 	return r.statusCode
 }
 

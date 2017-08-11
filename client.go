@@ -1,7 +1,6 @@
 package porthos
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/porthos-rpc/porthos-go/log"
@@ -78,17 +77,13 @@ func (c *Client) processResponse(d amqp.Delivery) {
 
 	address := c.unmarshallCorrelationID(d.CorrelationId)
 
-	statusCode, err := strconv.Atoi(d.Headers["statusCode"].(string))
-
-	if err != nil {
-		log.Error("Error reading statusCode from response: %s", d.Headers["statusCode"])
-	}
+	statusCode := d.Headers["statusCode"].(int32)
 
 	res := getSlot(address)
 	res.sendResponse(ClientResponse{
 		Content:     d.Body,
 		ContentType: d.ContentType,
-		StatusCode:  int16(statusCode),
+		StatusCode:  statusCode,
 		Headers:     *NewHeadersFromMap(d.Headers),
 	})
 }

@@ -91,7 +91,7 @@ func TestProcessResponse(t *testing.T) {
 		false,
 		amqp.Publishing{
 			Headers: amqp.Table{
-				"statusCode": "200",
+				"statusCode": int32(200),
 			},
 			CorrelationId: ret.(*slot).getCorrelationID(),
 			Body:          []byte(""),
@@ -109,8 +109,8 @@ func TestProcessResponse(t *testing.T) {
 			t.Errorf("Got an unexpected status code: %d", res.StatusCode)
 		}
 
-		if res.Headers.Get("statusCode") != "200" {
-			t.Errorf("Got an unexpected status code in headers: %d", res.Headers.Get("statusCode"))
+		if res.Headers.Get("statusCode").(int32) != 200 {
+			t.Errorf("Got an unexpected status code in headers: %d", res.Headers.Get("statusCode").(int32))
 		}
 
 		if res.ContentType != "application/octet-stream" {
@@ -172,7 +172,7 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 		false,
 		amqp.Publishing{
 			Headers: amqp.Table{
-				"statusCode": "200",
+				"statusCode": int32(200),
 			},
 			CorrelationId: ret1.(*slot).getCorrelationID(),
 			Body:          []byte(""),
@@ -191,7 +191,7 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 		false,
 		amqp.Publishing{
 			Headers: amqp.Table{
-				"statusCode": "404",
+				"statusCode": int32(404),
 			},
 			CorrelationId: ret2.(*slot).getCorrelationID(),
 			Body:          []byte(""),
@@ -209,8 +209,8 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 			t.Errorf("Got an unexpected status code: %d", res.StatusCode)
 		}
 
-		if res.Headers.Get("statusCode") != "200" {
-			t.Errorf("Got an unexpected status code in headers: %d", res.Headers.Get("statusCode"))
+		if res.Headers.Get("statusCode").(int32) != 200 {
+			t.Errorf("Got an unexpected status code in headers: %d", res.Headers.Get("statusCode").(int32))
 		}
 
 		if res.ContentType != "application/octet-stream" {
@@ -223,8 +223,8 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 			t.Errorf("Got an unexpected status code: %d", res.StatusCode)
 		}
 
-		if res.Headers.Get("statusCode") != "404" {
-			t.Errorf("Got an unexpected status code in headers: %d", res.Headers.Get("statusCode"))
+		if res.Headers.Get("statusCode").(int32) != 404 {
+			t.Errorf("Got an unexpected status code in headers: %d", res.Headers.Get("statusCode").(int32))
 		}
 
 		if res.ContentType != "application/octet-stream" {

@@ -12,7 +12,7 @@ func NewHeaders() *Headers {
 	}
 }
 
-// NewHeadersFromMap creates a new Headers from a given map.
+// NewHeadersFromMap creates a new Headers from a map.
 func NewHeadersFromMap(m map[string]interface{}) *Headers {
 	return &Headers{
 		m,
@@ -20,13 +20,13 @@ func NewHeadersFromMap(m map[string]interface{}) *Headers {
 }
 
 // Set a header.
-func (h *Headers) Set(key string, value string) {
+func (h *Headers) Set(key string, value interface{}) {
 	h.headers[key] = value
 }
 
 // Get a header.
-func (h *Headers) Get(key string) string {
-	return h.headers[key].(string)
+func (h *Headers) Get(key string) interface{} {
+	return h.headers[key]
 }
 
 // Delete a header.

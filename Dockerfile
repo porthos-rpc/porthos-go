@@ -8,3 +8,5 @@ RUN mkdir -p /go/src/github.com/porthos-rpc/porthos-go
 WORKDIR /go/src/github.com/porthos-rpc/porthos-go
 
 RUN go get github.com/streadway/amqp
+
+ADD . /go/src/github.com/porthos-rpc/porthos-go

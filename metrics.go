@@ -14,7 +14,7 @@ type metricEntry struct {
 	ServiceName  string        `json:"serviceName"`
 	MethodName   string        `json:"methodName"`
 	ResponseTime time.Duration `json:"responsetime"`
-	StatusCode   int16         `json:"statusCode"`
+	StatusCode   int32         `json:"statusCode"`
 }
 
 type metricsCollector struct {
@@ -83,7 +83,7 @@ func (a *MetricsShipperExtension) ServerListening(server Server) {}
 func (a *MetricsShipperExtension) IncomingRequest(req Request) {}
 
 // OutgoingResponse ships metrics based on responses to the broker.
-func (a *MetricsShipperExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int16) {
+func (a *MetricsShipperExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int32) {
 	a.mc.append(&metricEntry{req.GetServiceName(), req.GetMethodName(), resTime, statusCode})
 
 	if a.mc.isFull() {

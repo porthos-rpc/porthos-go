@@ -74,7 +74,7 @@ func (s *SpecShipperExtension) ServerListening(srv Server) {
 func (s *SpecShipperExtension) IncomingRequest(req Request) {}
 
 // OutgoingResponse this is not implemented in this extension.
-func (s *SpecShipperExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int16) {
+func (s *SpecShipperExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int32) {
 }
 
 // NewSpecShipperExtension creates a new extension that ship method specs to the broker.
