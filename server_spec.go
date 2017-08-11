@@ -12,7 +12,7 @@ type Spec struct {
 // ContentSpec to a remote procedure.
 type ContentSpec struct {
 	ContentType string      `json:"contentType"`
-	Body        BodySpecMap `json:"body"`
+	Body        interface{} `json:"body"`
 }
 
 // FieldSpec represents a spec of a body field.
@@ -29,6 +29,23 @@ type BodySpecMap map[string]FieldSpec
 // You just have to pass an "instance" of your struct.
 func BodySpecFromStruct(structValue interface{}) BodySpecMap {
 	return bodySpecFromStructType(reflect.ValueOf(structValue).Type())
+}
+
+// BodySpecFromArray creates a body spec from a array value.
+// You just have to pass an "instance" of your array.
+func BodySpecFromArray(structOfTheList interface{}) []FieldSpec {
+	spec := make([]FieldSpec, 1)
+
+	tp := reflect.ValueOf(structOfTheList).Type()
+
+	if tp.Kind() == reflect.Struct {
+		child := bodySpecFromStructType(tp)
+		spec[0] = FieldSpec{Type: tp.Name(), Body: child}
+	} else {
+		spec[0] = FieldSpec{Type: tp.Name()}
+	}
+
+	return spec
 }
 
 func bodySpecFromStructType(s reflect.Type) BodySpecMap {
