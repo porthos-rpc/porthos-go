@@ -1,11 +1,11 @@
 package porthos
 
 import (
+	"fmt"
+	"github.com/streadway/amqp"
+	"log"
 	"sync"
 	"time"
-
-	"github.com/porthos-rpc/porthos-go/log"
-	"github.com/streadway/amqp"
 )
 
 // MethodHandler represents a rpc method handler.
@@ -138,7 +138,7 @@ func (s *server) handleReestablishedConnnection() {
 		err := s.setupTopology()
 
 		if err != nil {
-			log.Error("Error setting up topology after reconnection [%s]", err)
+			log.Printf("[PORTHOS] Error setting up topology after reconnection [%s]", err)
 		}
 	}
 }
@@ -149,10 +149,16 @@ func (s *server) serve() {
 			s.pipeThroughServerListeningExtensions()
 			s.printRegisteredMethods()
 
-			log.Info("Connected to the broker and waiting for incoming rpc requests...")
+			log.Printf("[PORTHOS] Connected to the broker and waiting for incoming rpc requests...")
 
 			for d := range s.requestChannel {
-				go s.processRequest(d)
+				go func() {
+					err := s.processRequest(d)
+
+					if err != nil {
+						log.Printf("[PORTHOS] Error processing request: %s", err)
+					}
+				}()
 			}
 
 			s.topologySet = false
@@ -167,14 +173,14 @@ func (s *server) serve() {
 }
 
 func (s *server) printRegisteredMethods() {
-	log.Info("[%s]", s.serviceName)
+	log.Printf("[PORTHOS] [%s]", s.serviceName)
 
 	for method := range s.methods {
-		log.Info(". %s", method)
+		log.Printf("[PORTHOS] . %s", method)
 	}
 }
 
-func (s *server) processRequest(d amqp.Delivery) {
+func (s *server) processRequest(d amqp.Delivery) error {
 	methodName := d.Headers["X-Method"].(string)
 
 	if method, ok := s.methods[methodName]; ok {
@@ -182,7 +188,7 @@ func (s *server) processRequest(d amqp.Delivery) {
 		ch, err := s.broker.openChannel()
 
 		if err != nil {
-			log.Error("Error opening channel for response: '%s'", err)
+			return err
 		}
 
 		defer ch.Close()
@@ -195,19 +201,24 @@ func (s *server) processRequest(d amqp.Delivery) {
 		err = resWriter.Write(res)
 
 		if err != nil {
-			log.Error("Error writing response: '%s'", err.Error())
+			return err
 		}
 	} else {
-		log.Error("Method '%s' not found.", methodName)
 		if !s.autoAck {
 			d.Reject(false)
 		}
+		return fmt.Errorf("Method '%s' not found.", methodName)
 	}
+
+	return nil
 }
 
 func (s *server) pipeThroughServerListeningExtensions() {
 	for _, ext := range s.extensions {
-		ext.ServerListening(s)
+		err := ext.ServerListening(s)
+		if err != nil {
+			log.Printf("[PORTHOS] Error pipe trough server listening. Error %s", err)
+		}
 	}
 }
 

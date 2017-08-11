@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/porthos-rpc/porthos-go"
-	"github.com/porthos-rpc/porthos-go/log"
+	"log"
 )
 
 type input struct {
@@ -23,7 +23,7 @@ func doSomething(req porthos.Request, res porthos.Response) {
 func doSomethingElseHandler(req porthos.Request, res porthos.Response) {
 	m := make(map[string]int)
 	_ = req.Bind(&m)
-	log.Info("doSomethingElse with value %f", m["value"])
+	log.Printf("doSomethingElse with value %f", m["value"])
 }
 
 func doSomethingThatReturnsValue(req porthos.Request, res porthos.Response) {

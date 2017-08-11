@@ -9,7 +9,11 @@ import (
 func TestMetricsShipperExtension(t *testing.T) {
 	b, _ := NewBroker(os.Getenv("AMQP_URL"))
 
-	ext := NewMetricsShipperExtension(b, MetricsShipperConfig{BufferSize: 2})
+	ext, err := NewMetricsShipperExtension(b, MetricsShipperConfig{BufferSize: 2})
+
+	if err != nil {
+		t.Error(err)
+	}
 
 	ext.OutgoingResponse(&request{serviceName: "SampleService", methodName: "test1"}, &response{}, 4*time.Millisecond, 200)
 	ext.OutgoingResponse(&request{serviceName: "SampleService", methodName: "test2"}, &response{}, 5*time.Millisecond, 201)

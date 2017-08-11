@@ -69,9 +69,9 @@
 //             for {
 //                 select {
 //                 case in := <-ext.Incoming():
-//                     log.Info("Before executing method: %s", in.Request.MethodName)
+//                     log.Printf("Before executing method: %s", in.Request.MethodName)
 //                 case out := <-ext.Outgoing():
-//                     log.Info("After executing method: %s", out.Request.MethodName)
+//                     log.Printf("After executing method: %s", out.Request.MethodName)
 //                 }
 //             }
 //         }()

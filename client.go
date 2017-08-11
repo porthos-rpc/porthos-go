@@ -3,7 +3,6 @@ package porthos
 import (
 	"time"
 
-	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
 
@@ -72,8 +71,6 @@ func (c *Client) start() {
 
 func (c *Client) processResponse(d amqp.Delivery) {
 	d.Ack(false)
-
-	log.Debug("Ack. Received response in '%s' for slot: '%d'", d.RoutingKey, []byte(d.CorrelationId))
 
 	address := c.unmarshallCorrelationID(d.CorrelationId)
 
