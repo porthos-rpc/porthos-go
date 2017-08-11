@@ -129,13 +129,13 @@ func TestServerProcessRequest(t *testing.T) {
 	// wait the response or timeout.
 	for {
 		select {
-		case response := <-dc:
-			if response.Headers["statusCode"].(int16) != 200 {
-				t.Errorf("Expected status code was 200, got: %d", response.Headers["statusCode"])
+		case amqpResponse := <-dc:
+			if amqpResponse.Headers["statusCode"].(string) != "200" {
+				t.Errorf("Expected status code was 200, got: %d", amqpResponse.Headers["statusCode"])
 			}
 
 			var responseTest ResponseTest
-			err = json.Unmarshal(response.Body, &responseTest)
+			err = json.Unmarshal(amqpResponse.Body, &responseTest)
 
 			if responseTest.Sum != 11 {
 				t.Errorf("Response failed, expected: 11, got: %s", responseTest.Sum)

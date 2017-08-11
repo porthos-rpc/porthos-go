@@ -34,6 +34,14 @@ func doSomethingThatReturnsValue(req porthos.Request, res porthos.Response) {
 	res.JSON(porthos.StatusOK, output{i.Value, i.Value + 1})
 }
 
+func doSomethingWithEmptyResponse(req porthos.Request, res porthos.Response) {
+	var i input
+
+	_ = req.Bind(&i)
+
+	res.Empty(porthos.StatusOK)
+}
+
 func main() {
 	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
 	defer b.Close()
@@ -77,6 +85,12 @@ func main() {
 
 	// procedure with a json struct spec.
 	userService.RegisterWithSpec("doSomethingThatReturnsValue", doSomethingThatReturnsValue, porthos.Spec{
+		ContentType: "application/json",
+		Body:        porthos.BodySpecFromStruct(input{}),
+	})
+
+	// procedure with a json struct spec.
+	userService.RegisterWithSpec("doSomethingWithEmptyResponse", doSomethingWithEmptyResponse, porthos.Spec{
 		ContentType: "application/json",
 		Body:        porthos.BodySpecFromStruct(input{}),
 	})
