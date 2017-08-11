@@ -34,6 +34,17 @@ func doSomethingThatReturnsValue(req porthos.Request, res porthos.Response) {
 	res.JSON(porthos.StatusOK, output{i.Value, i.Value + 1})
 }
 
+func doSomethingThatReturnsAList(req porthos.Request, res porthos.Response) {
+	var i input
+
+	_ = req.Bind(&i)
+
+	l := make([]output, 1)
+	l[0] = output{i.Value, i.Value + 1}
+
+	res.JSON(porthos.StatusOK, l)
+}
+
 func doSomethingWithEmptyResponse(req porthos.Request, res porthos.Response) {
 	var i input
 
@@ -103,6 +114,18 @@ func main() {
 		Request: porthos.ContentSpec{
 			ContentType: "application/json",
 			Body:        porthos.BodySpecFromStruct(input{}),
+		},
+	})
+
+	// procedure with a json array spec.
+	userService.RegisterWithSpec("doSomethingThatReturnsArray", doSomethingThatReturnsAList, porthos.Spec{
+		Request: porthos.ContentSpec{
+			ContentType: "application/json",
+			Body:        porthos.BodySpecFromStruct(input{}),
+		},
+		Response: porthos.ContentSpec{
+			ContentType: "application/json",
+			Body:        porthos.BodySpecFromArray(output{}),
 		},
 	})
 
