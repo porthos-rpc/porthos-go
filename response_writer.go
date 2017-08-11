@@ -1,8 +1,6 @@
 package porthos
 
 import (
-	"strconv"
-
 	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
@@ -26,7 +24,7 @@ func (rw *responseWriter) Write(res Response) error {
 	}
 
 	// status code is a header as well.
-	res.GetHeaders().Set("statusCode", strconv.Itoa(int(res.GetStatusCode())))
+	res.GetHeaders().Set("statusCode", res.GetStatusCode())
 
 	err := rw.channel.Publish(
 		"",

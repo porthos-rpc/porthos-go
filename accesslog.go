@@ -21,7 +21,7 @@ func (a *AccessLogExtension) IncomingRequest(req Request) {
 }
 
 // OutgoingResponse logs rpc response details.
-func (a *AccessLogExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int16) {
+func (a *AccessLogExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int32) {
 	log.Info("Method [%s] Arguments [%s] Status Code [%d] Response Time [%fms]",
 		req.GetMethodName(),
 		string(req.GetBody()),
