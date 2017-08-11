@@ -171,11 +171,6 @@ func (s *server) printRegisteredMethods() {
 
 	for method := range s.methods {
 		log.Info(". %s", method)
-
-		if spec, ok := s.specs[method]; ok {
-			log.Info("    Content-Type: %s", spec.ContentType)
-			log.Info("    Body: %s", spec.Body)
-		}
 	}
 }
 
