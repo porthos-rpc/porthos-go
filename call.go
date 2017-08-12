@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
 
@@ -103,8 +102,6 @@ func (c *call) Async() (Slot, error) {
 			ReplyTo:       c.client.responseQueue.Name,
 			Body:          c.body,
 		})
-
-	log.Info("Published method '%s' in '%s'. Expecting response in queue '%s' and slot '%d'", c.method, c.client.serviceName, c.client.responseQueue.Name, []byte(correlationID))
 
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package porthos
 
 import (
-	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
 )
 
@@ -17,8 +16,6 @@ type responseWriter struct {
 }
 
 func (rw *responseWriter) Write(res Response) error {
-	log.Debug("Sending response to queue '%s'. Slot: '%d'", rw.delivery.ReplyTo, []byte(rw.delivery.CorrelationId))
-
 	if rw.channel == nil {
 		return ErrNilPublishChannel
 	}
@@ -44,7 +41,6 @@ func (rw *responseWriter) Write(res Response) error {
 
 	if !rw.autoAck {
 		rw.delivery.Ack(false)
-		log.Debug("Ack from slot '%d'", []byte(rw.delivery.CorrelationId))
 	}
 
 	return nil

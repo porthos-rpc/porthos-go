@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/porthos-rpc/porthos-go/log"
 	"github.com/streadway/amqp"
+	"log"
 )
 
 // Broker holds an implementation-specific connection.
@@ -103,7 +103,7 @@ func (b *Broker) handleConnectionClose() {
 			err := b.reestablish()
 
 			if err == nil {
-				log.Info("Connection reestablished")
+				log.Printf("[PORTHOS] Connection reestablished")
 
 				for _, c := range b.reestablishs {
 					c <- true
@@ -111,7 +111,7 @@ func (b *Broker) handleConnectionClose() {
 
 				break
 			} else {
-				log.Error("Error reestablishing connection, attempt %d. Retrying... [%s]", i, err)
+				log.Printf("[PORTHOS] Error reestablishing connection, attempt %d. Retrying... [%s]", i, err)
 
 				time.Sleep(b.config.reconnectInterval)
 			}

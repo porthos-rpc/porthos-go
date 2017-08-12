@@ -2,10 +2,9 @@ package porthos
 
 import (
 	"encoding/json"
-	"time"
-
-	"github.com/porthos-rpc/porthos-go/log"
+	"fmt"
 	"github.com/streadway/amqp"
+	"time"
 )
 
 const specsQueueName = "porthos.specs"
@@ -21,12 +20,11 @@ type SpecShipperExtension struct {
 }
 
 // ServerListening takes all registered method specs and ships to the broker.
-func (s *SpecShipperExtension) ServerListening(srv Server) {
+func (s *SpecShipperExtension) ServerListening(srv Server) error {
 	ch, err := s.b.openChannel()
 
 	if err != nil {
-		log.Error("Error opening channel for the spec shipper.")
-		return
+		return fmt.Errorf("Error opening channel for the spec shipper. Error: %s", err)
 	}
 
 	defer ch.Close()
@@ -41,8 +39,7 @@ func (s *SpecShipperExtension) ServerListening(srv Server) {
 	)
 
 	if err != nil {
-		log.Error("Error declaring the specs queue", err)
-		return
+		return fmt.Errorf("Error declaring the specs queue. Error: %s", err)
 	}
 
 	payload, err := json.Marshal(specEntry{
@@ -51,8 +48,7 @@ func (s *SpecShipperExtension) ServerListening(srv Server) {
 	})
 
 	if err != nil {
-		log.Error("Error creating specs payload", err)
-		return
+		return fmt.Errorf("Error creating specs payload. Error: %s", err)
 	}
 
 	err = ch.Publish(
@@ -66,8 +62,10 @@ func (s *SpecShipperExtension) ServerListening(srv Server) {
 		})
 
 	if err != nil {
-		log.Error("Error publishing specs to the broker", err)
+		return fmt.Errorf("Error publishing specs to the broker. Error: %s", err)
 	}
+
+	return nil
 }
 
 // IncomingRequest this is not implemented in this extension.

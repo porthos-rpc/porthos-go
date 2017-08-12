@@ -1,9 +1,8 @@
 package porthos
 
 import (
+	"log"
 	"time"
-
-	"github.com/porthos-rpc/porthos-go/log"
 )
 
 // AccessLogExtension logs incoming requests and outgoing responses.
@@ -11,18 +10,20 @@ type AccessLogExtension struct {
 }
 
 // ServerListening this is not implemented in this extension.
-func (a *AccessLogExtension) ServerListening(server Server) {}
+func (a *AccessLogExtension) ServerListening(server Server) error {
+	return nil
+}
 
 // IncomingRequest logs rpc request method and arguments.
 func (a *AccessLogExtension) IncomingRequest(req Request) {
-	log.Info("Method [%s] Arguments [%s]",
+	log.Printf("[PORTHOS] Method [%s] Arguments [%s]",
 		req.GetMethodName(),
 		string(req.GetBody()))
 }
 
 // OutgoingResponse logs rpc response details.
 func (a *AccessLogExtension) OutgoingResponse(req Request, res Response, resTime time.Duration, statusCode int32) {
-	log.Info("Method [%s] Arguments [%s] Status Code [%d] Response Time [%fms]",
+	log.Printf("[PORTHOS] Method [%s] Arguments [%s] Status Code [%d] Response Time [%fms]",
 		req.GetMethodName(),
 		string(req.GetBody()),
 		statusCode,

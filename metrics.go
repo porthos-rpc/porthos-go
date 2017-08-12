@@ -2,10 +2,10 @@ package porthos
 
 import (
 	"encoding/json"
-	"time"
-
-	"github.com/porthos-rpc/porthos-go/log"
+	"fmt"
 	"github.com/streadway/amqp"
+	"log"
+	"time"
 )
 
 const metricsQueueName = "porthos.metrics"
@@ -41,14 +41,11 @@ func (mc *metricsCollector) isFull() bool {
 	return mc.index == len(mc.buffer)
 }
 
-func (mc *metricsCollector) ship() {
-	log.Debug("Shipping metrics to broker...")
-
+func (mc *metricsCollector) ship() error {
 	payload, err := json.Marshal(mc.buffer)
 
 	if err != nil {
-		log.Error("Error json encoding metrics payload", err)
-		return
+		return fmt.Errorf("Error json encoding metrics payload. Error: %s", err)
 	}
 
 	err = mc.channel.Publish(
@@ -62,8 +59,10 @@ func (mc *metricsCollector) ship() {
 		})
 
 	if err != nil {
-		log.Error("Error publishing metrics to the broker", err)
+		return fmt.Errorf("Error publishing metrics to the broker. Error: %s", err)
 	}
+
+	return nil
 }
 
 // MetricsShipperConfig defines config params for the NewMetricsShipperExtension.
@@ -77,7 +76,9 @@ type MetricsShipperExtension struct {
 }
 
 // ServerListening this is not implemented in this extension.
-func (a *MetricsShipperExtension) ServerListening(server Server) {}
+func (a *MetricsShipperExtension) ServerListening(server Server) error {
+	return nil
+}
 
 // IncomingRequest this is not implemented in this extension.
 func (a *MetricsShipperExtension) IncomingRequest(req Request) {}
@@ -93,12 +94,11 @@ func (a *MetricsShipperExtension) OutgoingResponse(req Request, res Response, re
 }
 
 // NewMetricsShipperExtension creates a new extension that logs everything to stdout.
-func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) Extension {
+func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) (Extension, error) {
 	ch, err := b.openChannel()
 
 	if err != nil {
-		log.Error("Error creating metrics broker channel", err)
-		return nil
+		return nil, fmt.Errorf("Error creating metrics broker channel. Error: %s", err)
 	}
 
 	_, err = ch.QueueDeclare(
@@ -110,10 +110,10 @@ func NewMetricsShipperExtension(b *Broker, config MetricsShipperConfig) Extensio
 		nil,              // arguments
 	)
 
-	log.Info("Metrics shipper extension is waiting for outgoing events...")
+	log.Printf("[PORTHOS] Metrics shipper extension is waiting for outgoing events...")
 
 	return &MetricsShipperExtension{&metricsCollector{
 		channel: ch,
 		buffer:  make([]*metricEntry, config.BufferSize, config.BufferSize),
-	}}
+	}}, nil
 }
