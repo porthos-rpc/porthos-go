@@ -152,13 +152,13 @@ func (s *server) serve() {
 			log.Printf("[PORTHOS] Connected to the broker and waiting for incoming rpc requests...")
 
 			for d := range s.requestChannel {
-				go func() {
+				go func(d amqp.Delivery) {
 					err := s.processRequest(d)
 
 					if err != nil {
 						log.Printf("[PORTHOS] Error processing request: %s", err)
 					}
-				}()
+				}(d)
 			}
 
 			s.topologySet = false
@@ -188,7 +188,7 @@ func (s *server) processRequest(d amqp.Delivery) error {
 		ch, err := s.broker.openChannel()
 
 		if err != nil {
-			return err
+			return fmt.Errorf("Error opening channel for response: %s", err)
 		}
 
 		defer ch.Close()
@@ -201,7 +201,7 @@ func (s *server) processRequest(d amqp.Delivery) error {
 		err = resWriter.Write(res)
 
 		if err != nil {
-			return err
+			return fmt.Errorf("Error writing response: %s", err)
 		}
 	} else {
 		if !s.autoAck {
