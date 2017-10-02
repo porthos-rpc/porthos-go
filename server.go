@@ -15,7 +15,7 @@ type MethodHandler func(req Request, res Response)
 type Server interface {
 	// Register a method and its handler.
 	Register(method string, handler MethodHandler)
-	// Register a method and its handler.
+	// Register a method, it's handler and it's specification.
 	RegisterWithSpec(method string, handler MethodHandler, spec Spec)
 	// AddExtension adds extensions to the server instance.
 	// Extensions can be used to add custom actions to incoming and outgoing RPC calls.
@@ -26,16 +26,16 @@ type Server interface {
 	GetServiceName() string
 	// GetSpecs returns all registered specs.
 	GetSpecs() map[string]Spec
-	// Close the client and AMQP channel.
+	// Close closes the client and AMQP channel.
 	// This method returns right after the AMQP channel is closed.
-	// In order to give time to the current request to finish (if there's one)
+	// In order to give time to the current request to finish (if there's any)
 	// it's up to you to wait using the NotifyClose.
 	Close()
 	// Shutdown shuts down the client and AMQP channel.
 	// It provider graceful shutdown, since it will wait the result
 	// of <-s.NotifyClose().
 	Shutdown()
-	// NotifyClose returns a channel to be notified then this server closes.
+	// NotifyClose returns a channel to be notified when this server closes.
 	NotifyClose() <-chan bool
 }
 
