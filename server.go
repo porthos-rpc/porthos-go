@@ -191,6 +191,12 @@ func (s *server) processRequest(d amqp.Delivery) error {
 			return fmt.Errorf("Error opening channel for response: %s", err)
 		}
 
+		if err := ch.Confirm(false); err != nil {
+			return fmt.Errorf("Channel could not be put into confirm mode: %s", err)
+		}
+
+		confirms := ch.NotifyPublish(make(chan amqp.Confirmation, 1))
+
 		defer ch.Close()
 
 		resWriter := &responseWriter{delivery: d, channel: ch, autoAck: s.autoAck}
@@ -202,6 +208,10 @@ func (s *server) processRequest(d amqp.Delivery) error {
 
 		if err != nil {
 			return fmt.Errorf("Error writing response: %s", err)
+		} else {
+			if confirmed := <-confirms; !confirmed.Ack {
+				return fmt.Errorf("Request wast no acked.")
+			}
 		}
 	} else {
 		if !s.autoAck {

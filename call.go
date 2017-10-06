@@ -2,10 +2,11 @@ package porthos
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/streadway/amqp"
+	"log"
 	"strconv"
 	"time"
-
-	"github.com/streadway/amqp"
 )
 
 type call struct {
@@ -87,6 +88,12 @@ func (c *call) Async() (Slot, error) {
 
 	defer ch.Close()
 
+	if err := ch.Confirm(false); err != nil {
+		return nil, fmt.Errorf("Channel could not be put into confirm mode: %s", err)
+	}
+
+	confirms := ch.NotifyPublish(make(chan amqp.Confirmation, 1))
+
 	err = ch.Publish(
 		"",                   // exchange
 		c.client.serviceName, // routing key
@@ -105,6 +112,10 @@ func (c *call) Async() (Slot, error) {
 
 	if err != nil {
 		return nil, err
+	} else {
+		if confirmed := <-confirms; !confirmed.Ack {
+			return nil, fmt.Errorf("Request wast no acked.")
+		}
 	}
 
 	return res, nil

@@ -35,44 +35,48 @@ func main() {
 
 	// call a remote method that returns the value right away.
 	response, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": 20}).Sync()
-	jsonResponse, _ := response.UnmarshalJSON()
-	fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["value_plus_one"])
+	if err == nil {
+		jsonResponse, _ := response.UnmarshalJSON()
+		fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["value_plus_one"])
 
-	var wg sync.WaitGroup
+		var wg sync.WaitGroup
 
-	// call a lot of methods concurrently
-	for i := 0; i < 1000; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			ret, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": idx}).Async()
+		// call a lot of methods concurrently
+		for i := 0; i < 10000; i++ {
+			wg.Add(1)
+			go func(idx int) {
+				ret, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": idx}).Async()
 
-			if err != nil {
-				fmt.Println(err)
+				if err != nil {
+					fmt.Println(err)
+					wg.Done()
+					return
+				}
+
+				defer ret.Dispose()
+
+				select {
+				case response := <-ret.ResponseChannel():
+					jsonResponse, _ := response.UnmarshalJSON()
+
+					fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, jsonResponse["original_value"], jsonResponse["value_plus_one"])
+				case <-time.After(2 * time.Second):
+					fmt.Printf("Timed out %d :(\n", idx)
+				}
 				wg.Done()
-				return
-			}
+			}(i)
+		}
 
-			defer ret.Dispose()
-
-			select {
-			case response := <-ret.ResponseChannel():
-				jsonResponse, _ := response.UnmarshalJSON()
-
-				fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, jsonResponse["original_value"], jsonResponse["value_plus_one"])
-			case <-time.After(2 * time.Second):
-				fmt.Printf("Timed out %d :(\n", idx)
-			}
-			wg.Done()
-		}(i)
+		// wait (to give time to execute all goroutines)
+		wg.Wait()
+	} else {
+		fmt.Println("error: ", err)
 	}
-
-	// wait (to give time to execute all goroutines)
-	wg.Wait()
 
 	// call a remote method that returns the value right away.
 	response, err = userService.Call("doSomethingThatReturnsValue").WithMap(porthos.Map{"value": 10}).Sync()
 	if err == nil {
-		jsonResponse, _ = response.UnmarshalJSON()
+		jsonResponse, _ := response.UnmarshalJSON()
 		fmt.Println("Service userService.doSomethingThatReturnsValue sync call: ", jsonResponse["value_plus_one"])
 	} else {
 		fmt.Println("error: ", err)
