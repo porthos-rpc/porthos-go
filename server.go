@@ -184,7 +184,7 @@ func (s *server) processRequest(d amqp.Delivery) error {
 	methodName := d.Headers["X-Method"].(string)
 
 	if method, ok := s.methods[methodName]; ok {
-		req := &request{s.serviceName, methodName, d.ContentType, d.Body}
+		req := &request{s.serviceName, methodName, d.ContentType, d.Body, nil}
 		ch, err := s.broker.openChannel()
 
 		if err != nil {
