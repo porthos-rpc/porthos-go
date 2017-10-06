@@ -2,6 +2,7 @@ package porthos
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 )
@@ -18,6 +19,12 @@ type Request interface {
 	Form() (Form, error)
 	// Bind binds the body to an interface.
 	Bind(i interface{}) error
+	// WithContext returns a shallow copy of Event with its context changed to ctx.
+	// The provided ctx must be non-nil.
+	WithContext(ctx context.Context) Request
+	// The returned context is always non-nil; it defaults to the background context.
+	// To change the context, use WithContext.
+	Context() context.Context
 }
 
 type request struct {
@@ -25,6 +32,7 @@ type request struct {
 	methodName  string
 	contentType string
 	body        []byte
+	ctx         context.Context
 }
 
 func (r *request) GetServiceName() string {
@@ -51,4 +59,24 @@ func (r *request) Bind(i interface{}) error {
 	decoder := json.NewDecoder(bytes.NewReader(r.body))
 	decoder.UseNumber()
 	return decoder.Decode(i)
+}
+
+func (r *request) WithContext(ctx context.Context) Request {
+	if ctx == nil {
+		panic("nil context")
+	}
+
+	r2 := new(request)
+	*r2 = *r
+	r2.ctx = ctx
+
+	return r2
+}
+
+func (r *request) Context() context.Context {
+	if r.ctx != nil {
+		return r.ctx
+	}
+
+	return context.Background()
 }
