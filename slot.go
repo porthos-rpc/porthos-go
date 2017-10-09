@@ -1,7 +1,6 @@
 package porthos
 
 import (
-	"github.com/satori/go.uuid"
 	"sync"
 )
 
@@ -18,9 +17,8 @@ type slot struct {
 	mutex           *sync.Mutex
 }
 
-func (slot *slot) getCorrelationID() string {
-	uid := uuid.NewV4()
-	return uid.String()
+func (slot *slot) getCorrelationID() (string, error) {
+	return NewUUIDv4()
 }
 
 func (slot *slot) ResponseChannel() <-chan ClientResponse {

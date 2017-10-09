@@ -78,8 +78,13 @@ func (c *call) withJSON(i interface{}) *call {
 // It returns a *Slot (which contains the response channel) and any possible error.
 func (c *call) Async() (Slot, error) {
 	res := NewSlot()
-	correlationID := res.getCorrelationID()
-	c.client.addSlot(correlationID, res)
+	correlationID, err := res.getCorrelationID()
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.client.pushSlot(correlationID, res)
 
 	ch, err := c.client.broker.openChannel()
 

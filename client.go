@@ -79,7 +79,7 @@ func (c *Client) processResponse(d amqp.Delivery) {
 
 	statusCode := d.Headers["statusCode"].(int32)
 
-	res, ok := c.getSlot(d.CorrelationId)
+	res, ok := c.popSlot(d.CorrelationId)
 	if ok {
 		res.sendResponse(ClientResponse{
 			Content:     d.Body,
@@ -102,14 +102,14 @@ func (c *Client) Close() {
 	c.channel.Close()
 }
 
-func (c *Client) addSlot(correlationID string, slot *slot) {
+func (c *Client) pushSlot(correlationID string, slot *slot) {
 	c.slotLock.Lock()
 	defer c.slotLock.Unlock()
 
 	c.slots[correlationID] = slot
 }
 
-func (c *Client) getSlot(correlationID string) (*slot, bool) {
+func (c *Client) popSlot(correlationID string) (*slot, bool) {
 	c.slotLock.Lock()
 	defer c.slotLock.Unlock()
 
