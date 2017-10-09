@@ -1,9 +1,10 @@
 package porthos
 
 import (
-	"time"
-
 	"github.com/streadway/amqp"
+	"log"
+	"sync"
+	"time"
 )
 
 // Client is an entry point for making remote calls.
@@ -14,6 +15,8 @@ type Client struct {
 	deliveryChannel <-chan amqp.Delivery
 	responseQueue   *amqp.Queue
 	broker          *Broker
+	slots           map[string]*slot
+	slotLock        *sync.Mutex
 }
 
 // NewClient creates a new instance of Client, responsible for making remote calls.
@@ -48,12 +51,14 @@ func NewClient(b *Broker, serviceName string, defaultTTL time.Duration) (*Client
 	}
 
 	c := &Client{
-		serviceName,
-		defaultTTL,
-		ch,
-		dc,
-		&q,
-		b,
+		serviceName:     serviceName,
+		defaultTTL:      defaultTTL,
+		channel:         ch,
+		deliveryChannel: dc,
+		responseQueue:   &q,
+		broker:          b,
+		slots:           make(map[string]*slot, 3000),
+		slotLock:        new(sync.Mutex),
 	}
 
 	c.start()
@@ -72,17 +77,19 @@ func (c *Client) start() {
 func (c *Client) processResponse(d amqp.Delivery) {
 	d.Ack(false)
 
-	address := c.unmarshallCorrelationID(d.CorrelationId)
-
 	statusCode := d.Headers["statusCode"].(int32)
 
-	res := getSlot(address)
-	res.sendResponse(ClientResponse{
-		Content:     d.Body,
-		ContentType: d.ContentType,
-		StatusCode:  statusCode,
-		Headers:     *NewHeadersFromMap(d.Headers),
-	})
+	res, ok := c.popSlot(d.CorrelationId)
+	if ok {
+		res.sendResponse(ClientResponse{
+			Content:     d.Body,
+			ContentType: d.ContentType,
+			StatusCode:  statusCode,
+			Headers:     *NewHeadersFromMap(d.Headers),
+		})
+	} else {
+		log.Printf("Slot %s not exists.", d.CorrelationId)
+	}
 }
 
 // Call prepares a remote call.
@@ -95,6 +102,22 @@ func (c *Client) Close() {
 	c.channel.Close()
 }
 
-func (c *Client) unmarshallCorrelationID(correlationID string) uintptr {
-	return BytesToUintptr([]byte(correlationID))
+func (c *Client) pushSlot(correlationID string, slot *slot) {
+	c.slotLock.Lock()
+	defer c.slotLock.Unlock()
+
+	c.slots[correlationID] = slot
+}
+
+func (c *Client) popSlot(correlationID string) (*slot, bool) {
+	c.slotLock.Lock()
+	defer c.slotLock.Unlock()
+
+	slot, ok := c.slots[correlationID]
+
+	if ok {
+		delete(c.slots, correlationID)
+	}
+
+	return slot, ok
 }

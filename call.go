@@ -2,10 +2,10 @@ package porthos
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/streadway/amqp"
 	"strconv"
 	"time"
-
-	"github.com/streadway/amqp"
 )
 
 type call struct {
@@ -78,7 +78,14 @@ func (c *call) withJSON(i interface{}) *call {
 // It returns a *Slot (which contains the response channel) and any possible error.
 func (c *call) Async() (Slot, error) {
 	res := NewSlot()
-	correlationID := res.getCorrelationID()
+	correlationID, err := res.GetCorrelationID()
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.client.pushSlot(correlationID, res)
+
 	ch, err := c.client.broker.openChannel()
 
 	if err != nil {
@@ -86,6 +93,12 @@ func (c *call) Async() (Slot, error) {
 	}
 
 	defer ch.Close()
+
+	if err := ch.Confirm(false); err != nil {
+		return nil, fmt.Errorf("Channel could not be put into confirm mode: %s", err)
+	}
+
+	confirms := ch.NotifyPublish(make(chan amqp.Confirmation, 1))
 
 	err = ch.Publish(
 		"",                   // exchange
@@ -105,6 +118,10 @@ func (c *call) Async() (Slot, error) {
 
 	if err != nil {
 		return nil, err
+	} else {
+		if confirmed := <-confirms; !confirmed.Ack {
+			return nil, ErrNotAcked
+		}
 	}
 
 	return res, nil

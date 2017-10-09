@@ -58,7 +58,7 @@ func main() {
 	defer b.Close()
 
 	if err != nil {
-		log.Error("Error creating broker")
+		log.Print("Error creating broker")
 		panic(err)
 	}
 
@@ -66,16 +66,18 @@ func main() {
 	userService, err := porthos.NewServer(b, "UserService", porthos.Options{AutoAck: false})
 
 	if err != nil {
-		log.Error("Error creating server")
+		log.Print("Error creating server")
 		panic(err)
 	}
 
 	defer userService.Close()
 
-	// create and add the built-in metrics shipper.
-	userService.AddExtension(porthos.NewMetricsShipperExtension(b, porthos.MetricsShipperConfig{
+	ext, _ := porthos.NewMetricsShipperExtension(b, porthos.MetricsShipperConfig{
 		BufferSize: 100,
-	}))
+	})
+
+	// create and add the built-in metrics shipper.
+	userService.AddExtension(ext)
 
 	// create and add the access log extension.
 	userService.AddExtension(porthos.NewAccessLogExtension())

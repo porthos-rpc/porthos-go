@@ -84,6 +84,8 @@ func TestProcessResponse(t *testing.T) {
 
 	defer ret.Dispose()
 
+	id, _ := ret.GetCorrelationID()
+
 	err = c.channel.Publish(
 		"",
 		c.responseQueue.Name,
@@ -93,7 +95,7 @@ func TestProcessResponse(t *testing.T) {
 			Headers: amqp.Table{
 				"statusCode": int32(200),
 			},
-			CorrelationId: ret.(*slot).getCorrelationID(),
+			CorrelationId: id,
 			Body:          []byte(""),
 			ContentType:   "application/octet-stream",
 		})
@@ -165,6 +167,8 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 
 	defer ret2.Dispose()
 
+	id1, _ := ret1.GetCorrelationID()
+
 	err = c1.channel.Publish(
 		"",
 		c1.responseQueue.Name,
@@ -174,7 +178,7 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 			Headers: amqp.Table{
 				"statusCode": int32(200),
 			},
-			CorrelationId: ret1.(*slot).getCorrelationID(),
+			CorrelationId: id1,
 			Body:          []byte(""),
 			ContentType:   "application/octet-stream",
 		})
@@ -183,6 +187,8 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 		t.Errorf("Got an error publishing a fake response: %s", err)
 		panic(err)
 	}
+
+	id2, _ := ret2.GetCorrelationID()
 
 	err = c1.channel.Publish(
 		"",
@@ -193,7 +199,7 @@ func TestProcessResponseMultipleClients(t *testing.T) {
 			Headers: amqp.Table{
 				"statusCode": int32(404),
 			},
-			CorrelationId: ret2.(*slot).getCorrelationID(),
+			CorrelationId: id2,
 			Body:          []byte(""),
 			ContentType:   "application/octet-stream",
 		})
