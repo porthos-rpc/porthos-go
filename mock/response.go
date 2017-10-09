@@ -6,12 +6,6 @@ import (
 	"github.com/porthos-rpc/porthos-go"
 )
 
-func NewResponse() porthos.Response {
-	return &Response{
-		Headers: porthos.NewHeaders(),
-	}
-}
-
 type Response struct {
 	Body        []byte
 	ContentType string
@@ -55,4 +49,10 @@ func (r *Response) GetBody() []byte {
 
 func (r *Response) GetContentType() string {
 	return r.ContentType
+}
+
+func NewResponse() porthos.Response {
+	return &Response{
+		Headers: porthos.NewHeaders(),
+	}
 }

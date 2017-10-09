@@ -7,11 +7,11 @@ import (
 // Response represents a rpc response.
 type Response interface {
 	// JSON sets the content of the response as JSON data.
-	JSON(statusCode int32, body interface{})
+	JSON(int32, interface{})
 	// Raw sets the content of the response as an array of bytes.
-	Raw(statusCode int32, contentType string, body []byte)
+	Raw(int32, string, []byte)
 	// Empty leaves the content of the response as empty.
-	Empty(statusCode int32)
+	Empty(int32)
 	// GetHeaders returns the response headers.
 	GetHeaders() *Headers
 	// GetStatusCode returns the response status.

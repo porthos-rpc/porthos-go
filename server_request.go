@@ -19,9 +19,9 @@ type Request interface {
 	Form() (Form, error)
 	// Bind binds the body to an interface.
 	Bind(i interface{}) error
-	// WithContext returns a shallow copy of Event with its context changed to ctx.
-	// The provided ctx must be non-nil.
-	WithContext(ctx context.Context) Request
+	// WithContext returns a shallow copy of Event with its context changed to context.
+	// The provided context must be non-nil.
+	WithContext(context.Context) Request
 	// The returned context is always non-nil; it defaults to the background context.
 	// To change the context, use WithContext.
 	Context() context.Context
