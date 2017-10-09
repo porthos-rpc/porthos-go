@@ -10,15 +10,24 @@ type Slot interface {
 	ResponseChannel() <-chan ClientResponse
 	// Dispose response resources.
 	Dispose()
+	// Correlation ID
+	GetCorrelationID() (string, error)
 }
 
 type slot struct {
 	responseChannel chan ClientResponse
 	mutex           *sync.Mutex
+	id              string
 }
 
-func (slot *slot) getCorrelationID() (string, error) {
-	return NewUUIDv4()
+func (slot *slot) GetCorrelationID() (string, error) {
+	var err error
+
+	if slot.id == "" {
+		slot.id, err = NewUUIDv4()
+	}
+
+	return slot.id, err
 }
 
 func (slot *slot) ResponseChannel() <-chan ClientResponse {
@@ -45,5 +54,5 @@ func (slot *slot) sendResponse(c ClientResponse) {
 }
 
 func NewSlot() *slot {
-	return &slot{make(chan ClientResponse), new(sync.Mutex)}
+	return &slot{make(chan ClientResponse), new(sync.Mutex), ""}
 }
