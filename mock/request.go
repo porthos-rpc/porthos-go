@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -13,6 +14,7 @@ type Request struct {
 	MethodName  string
 	ContentType string
 	Body        []byte
+	ctx         context.Context
 }
 
 func (r *Request) GetServiceName() string {
@@ -41,7 +43,27 @@ func (r *Request) Bind(i interface{}) error {
 	return decoder.Decode(i)
 }
 
-func NewRequest(service, method string, contentType string, body []byte) *Request {
+func (r *Request) WithContext(ctx context.Context) porthos.Request {
+	if ctx == nil {
+		panic("nil context")
+	}
+
+	r2 := new(Request)
+	*r2 = *r
+	r2.ctx = ctx
+
+	return r2
+}
+
+func (r *Request) Context() context.Context {
+	if r.ctx != nil {
+		return r.ctx
+	}
+
+	return context.Background()
+}
+
+func NewRequest(service, method string, contentType string, body []byte) porthos.Request {
 	return &Request{
 		ServiceName: service,
 		MethodName:  method,
@@ -50,15 +72,15 @@ func NewRequest(service, method string, contentType string, body []byte) *Reques
 	}
 }
 
-func NewRequestFromMap(service, method string, m map[string]interface{}) *Request {
+func NewRequestFromMap(service, method string, m map[string]interface{}) porthos.Request {
 	return newRequestJSON(service, method, m)
 }
 
-func NewRequestFromStruct(service, method string, i interface{}) *Request {
+func NewRequestFromStruct(service, method string, i interface{}) porthos.Request {
 	return newRequestJSON(service, method, i)
 }
 
-func newRequestJSON(service, method string, i interface{}) *Request {
+func newRequestJSON(service, method string, i interface{}) porthos.Request {
 	data, err := json.Marshal(i)
 
 	if err != nil {
