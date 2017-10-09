@@ -8,5 +8,6 @@ RUN mkdir -p /go/src/github.com/porthos-rpc/porthos-go
 WORKDIR /go/src/github.com/porthos-rpc/porthos-go
 
 RUN go get github.com/streadway/amqp
+RUN go get github.com/satori/go.uuid
 
 ADD . /go/src/github.com/porthos-rpc/porthos-go

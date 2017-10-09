@@ -79,6 +79,8 @@ func (c *call) withJSON(i interface{}) *call {
 func (c *call) Async() (Slot, error) {
 	res := NewSlot()
 	correlationID := res.getCorrelationID()
+	c.client.addSlot(correlationID, res)
+
 	ch, err := c.client.broker.openChannel()
 
 	if err != nil {
@@ -113,7 +115,7 @@ func (c *call) Async() (Slot, error) {
 		return nil, err
 	} else {
 		if confirmed := <-confirms; !confirmed.Ack {
-			return nil, fmt.Errorf("Request wast no acked.")
+			return nil, ErrNotAcked
 		}
 	}
 

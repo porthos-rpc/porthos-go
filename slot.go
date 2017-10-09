@@ -1,8 +1,8 @@
 package porthos
 
 import (
+	"github.com/satori/go.uuid"
 	"sync"
-	"unsafe"
 )
 
 // Slot of a RPC call.
@@ -15,12 +15,12 @@ type Slot interface {
 
 type slot struct {
 	responseChannel chan ClientResponse
-	closed          bool
 	mutex           *sync.Mutex
 }
 
 func (slot *slot) getCorrelationID() string {
-	return string(UintptrToBytes((uintptr)(unsafe.Pointer(slot))))
+	uid := uuid.NewV4()
+	return uid.String()
 }
 
 func (slot *slot) ResponseChannel() <-chan ClientResponse {
@@ -31,9 +31,9 @@ func (slot *slot) Dispose() {
 	slot.mutex.Lock()
 	defer slot.mutex.Unlock()
 
-	if !slot.closed {
-		slot.closed = true
+	if slot.responseChannel != nil {
 		close(slot.responseChannel)
+		slot.responseChannel = nil
 	}
 }
 
@@ -41,15 +41,11 @@ func (slot *slot) sendResponse(c ClientResponse) {
 	slot.mutex.Lock()
 	defer slot.mutex.Unlock()
 
-	if !slot.closed {
+	if slot.responseChannel != nil {
 		slot.responseChannel <- c
 	}
 }
 
 func NewSlot() *slot {
-	return &slot{make(chan ClientResponse), false, new(sync.Mutex)}
-}
-
-func getSlot(address uintptr) *slot {
-	return (*slot)(unsafe.Pointer(uintptr(address)))
+	return &slot{make(chan ClientResponse), new(sync.Mutex)}
 }

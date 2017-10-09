@@ -185,6 +185,10 @@ func (s *server) processRequest(d amqp.Delivery) error {
 
 	if method, ok := s.methods[methodName]; ok {
 		req := &request{s.serviceName, methodName, d.ContentType, d.Body, nil}
+
+		res := newResponse()
+		method(req, res)
+
 		ch, err := s.broker.openChannel()
 
 		if err != nil {
@@ -200,17 +204,13 @@ func (s *server) processRequest(d amqp.Delivery) error {
 		defer ch.Close()
 
 		resWriter := &responseWriter{delivery: d, channel: ch, autoAck: s.autoAck}
-
-		res := newResponse()
-		method(req, res)
-
 		err = resWriter.Write(res)
 
 		if err != nil {
 			return fmt.Errorf("Error writing response: %s", err)
 		} else {
 			if confirmed := <-confirms; !confirmed.Ack {
-				return fmt.Errorf("Request wast no acked.")
+				return ErrNotAcked
 			}
 		}
 	} else {

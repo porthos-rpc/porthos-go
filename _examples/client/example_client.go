@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	porthos "github.com/porthos-rpc/porthos-go"
@@ -33,53 +32,15 @@ func main() {
 	userService.Call("doSomething").WithMap(map[string]interface{}{"value": 20}).Void()
 	fmt.Println("Service userService.doSomething invoked")
 
-	// call a remote method that returns the value right away.
-	response, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": 20}).Sync()
-	if err == nil {
-		jsonResponse, _ := response.UnmarshalJSON()
-		fmt.Println("Service userService.doSomethingThatReturnsValue sync call: %d", jsonResponse["value_plus_one"])
+	for i := 0; i < 10000; i++ {
+		ret, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": i}).Sync()
 
-		var wg sync.WaitGroup
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			jsonResponse, _ := ret.UnmarshalJSON()
 
-		// call a lot of methods concurrently
-		for i := 0; i < 10000; i++ {
-			wg.Add(1)
-			go func(idx int) {
-				ret, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": idx}).Async()
-
-				if err != nil {
-					fmt.Println(err)
-					wg.Done()
-					return
-				}
-
-				defer ret.Dispose()
-
-				select {
-				case response := <-ret.ResponseChannel():
-					jsonResponse, _ := response.UnmarshalJSON()
-
-					fmt.Printf("Response %d. Original: %f. Sum: %f\n", idx, jsonResponse["original_value"], jsonResponse["value_plus_one"])
-				case <-time.After(2 * time.Second):
-					fmt.Printf("Timed out %d :(\n", idx)
-				}
-				wg.Done()
-			}(i)
+			fmt.Printf("Response %d. Original: %f. Sum: %f\n", i, jsonResponse["original_value"], jsonResponse["value_plus_one"])
 		}
-
-		// wait (to give time to execute all goroutines)
-		wg.Wait()
-	} else {
-		fmt.Println("error: ", err)
 	}
-
-	// call a remote method that returns the value right away.
-	response, err = userService.Call("doSomethingThatReturnsValue").WithMap(porthos.Map{"value": 10}).Sync()
-	if err == nil {
-		jsonResponse, _ := response.UnmarshalJSON()
-		fmt.Println("Service userService.doSomethingThatReturnsValue sync call: ", jsonResponse["value_plus_one"])
-	} else {
-		fmt.Println("error: ", err)
-	}
-
 }
