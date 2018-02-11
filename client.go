@@ -75,8 +75,8 @@ func (c *Client) consume() error {
 	_, err = ch.QueueDeclare(
 		c.responseQueueName, // name
 		false,               // durable
-		true,                // auto-delete
-		false,               // exclusive
+		false,               // auto-delete
+		true,                // exclusive
 		false,               // no-wait
 		nil,
 	)
