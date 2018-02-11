@@ -2,10 +2,11 @@ package porthos
 
 import (
 	"fmt"
-	"github.com/streadway/amqp"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 // MethodHandler represents a rpc method handler.
@@ -94,7 +95,7 @@ func (s *server) setupTopology() error {
 		return err
 	}
 
-	// create the response queue (let the amqp server to pick a name for us)
+	// create the response queue
 	_, err = s.channel.QueueDeclare(
 		s.serviceName, // name
 		true,          // durable

@@ -45,7 +45,7 @@ func TestInvalidInt64Argument(t *testing.T) {
 	value, err := (&argument{json.Number("64000000")}).AsInt()
 
 	if err != nil {
-		t.Errorf("Got an error", err)
+		t.Errorf("Got an error: %s", err)
 	}
 
 	if value != 64000000 {

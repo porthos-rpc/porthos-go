@@ -5,6 +5,7 @@ go:
   - tip
 install:
   - go get github.com/streadway/amqp
+  - go get github.com/stretchr/testify
 services:
   - rabbitmq
 env:
