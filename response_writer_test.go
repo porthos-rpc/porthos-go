@@ -47,7 +47,7 @@ func TestResponseWriterJSON(t *testing.T) {
 		json.Unmarshal(response.Body, &responseTest)
 
 		if responseTest.Sum != 10 {
-			t.Errorf("Response failed, expected: 10, got: %s", responseTest.Sum)
+			t.Errorf("Response failed, expected: 10, got: %f", responseTest.Sum)
 		}
 
 		return

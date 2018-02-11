@@ -16,7 +16,7 @@ type Slot interface {
 
 type slot struct {
 	responseChannel chan ClientResponse
-	mutex           *sync.Mutex
+	mutex           sync.Mutex
 	id              string
 }
 
@@ -54,5 +54,7 @@ func (slot *slot) sendResponse(c ClientResponse) {
 }
 
 func NewSlot() *slot {
-	return &slot{make(chan ClientResponse), new(sync.Mutex), ""}
+	return &slot{
+		responseChannel: make(chan ClientResponse),
+	}
 }

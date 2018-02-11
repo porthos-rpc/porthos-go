@@ -3,9 +3,10 @@ package porthos
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/streadway/amqp"
 	"strconv"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 type call struct {
@@ -77,6 +78,10 @@ func (c *call) withJSON(i interface{}) *call {
 // Async calls the remote method with the given arguments.
 // It returns a *Slot (which contains the response channel) and any possible error.
 func (c *call) Async() (Slot, error) {
+	if !c.client.broker.IsConnected() {
+		return nil, ErrBrokerNotConnected
+	}
+
 	res := NewSlot()
 	correlationID, err := res.GetCorrelationID()
 
@@ -112,7 +117,7 @@ func (c *call) Async() (Slot, error) {
 			Expiration:    strconv.FormatInt(c.getTimeoutMilliseconds(), 10),
 			ContentType:   c.contentType,
 			CorrelationId: correlationID,
-			ReplyTo:       c.client.responseQueue.Name,
+			ReplyTo:       c.client.responseQueueName,
 			Body:          c.body,
 		})
 
@@ -148,7 +153,19 @@ func (c *call) Sync() (*ClientResponse, error) {
 
 // Void calls a remote service procedure/service which will not provide any return value.
 func (c *call) Void() error {
-	err := c.client.channel.Publish(
+	if !c.client.broker.IsConnected() {
+		return ErrBrokerNotConnected
+	}
+
+	ch, err := c.client.broker.openChannel()
+
+	if err != nil {
+		return err
+	}
+
+	defer ch.Close()
+
+	err = ch.Publish(
 		"",                   // exchange
 		c.client.serviceName, // routing key
 		false,                // mandatory

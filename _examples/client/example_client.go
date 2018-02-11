@@ -9,7 +9,10 @@ import (
 )
 
 func main() {
-	b, err := porthos.NewBroker(os.Getenv("AMQP_URL"))
+	b, err := porthos.NewBrokerConfig(os.Getenv("AMQP_URL"), porthos.Config{
+		ReconnectInterval: 1 * time.Second,
+		DialTimeout:       5 * time.Second,
+	})
 
 	if err != nil {
 		fmt.Printf("Error creating broker")
@@ -32,11 +35,20 @@ func main() {
 	userService.Call("doSomething").WithMap(map[string]interface{}{"value": 20}).Void()
 	fmt.Println("Service userService.doSomething invoked")
 
-	for i := 0; i < 10000; i++ {
+	i := 0
+
+	for {
+		i++
+
 		ret, err := userService.Call("doSomethingThatReturnsValue").WithMap(map[string]interface{}{"value": i}).Sync()
 
 		if err != nil {
-			fmt.Println(err)
+			if err == porthos.ErrBrokerNotConnected {
+				fmt.Printf("%s Waiting connection reestabilished.\n", err)
+				<-b.NotifyReestablish()
+			} else {
+				fmt.Println(err)
+			}
 		} else {
 			jsonResponse, _ := ret.UnmarshalJSON()
 
