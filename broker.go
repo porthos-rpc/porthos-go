@@ -84,8 +84,11 @@ func (b *Broker) NotifyConnectionClose() <-chan error {
 
 // NotifyReestablish returns a channel to notify when the connection is restablished.
 func (b *Broker) NotifyReestablish() <-chan bool {
-	receiver := make(chan bool)
+	receiver := make(chan bool, 1)
+
+	b.m.Lock()
 	b.reestablishs = append(b.reestablishs, receiver)
+	b.m.Unlock()
 
 	return receiver
 }
@@ -93,11 +96,6 @@ func (b *Broker) NotifyReestablish() <-chan bool {
 // WaitUntilConnectionCloses holds the execution until the connection closes.
 func (b *Broker) WaitUntilConnectionCloses() {
 	<-b.NotifyConnectionClose()
-}
-
-// WaitUntilConnectionReestablished holds the execution until the connection reestablished.
-func (b *Broker) WaitUntilConnectionReestablished() {
-	<-b.NotifyReestablish()
 }
 
 func (b *Broker) IsConnected() bool {

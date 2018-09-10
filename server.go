@@ -79,8 +79,6 @@ func NewServer(b *Broker, serviceName string, options Options) (Server, error) {
 		return nil, err
 	}
 
-	go s.handleReestablishedConnnection()
-
 	return s, nil
 }
 
@@ -130,42 +128,42 @@ func (s *server) setupTopology() error {
 	return nil
 }
 
-func (s *server) handleReestablishedConnnection() {
+func (s *server) serve() {
 	notifyCh := s.broker.NotifyReestablish()
 
 	for !s.closed {
-		<-notifyCh
+		if !s.broker.IsConnected() {
+			<-notifyCh
 
-		err := s.setupTopology()
-
-		if err != nil {
-			log.Printf("[PORTHOS] Error setting up topology after reconnection [%s]", err)
+			continue
 		}
-	}
-}
 
-func (s *server) serve() {
-	for !s.closed {
-		if s.topologySet {
-			s.pipeThroughServerListeningExtensions()
-			s.printRegisteredMethods()
+		if !s.topologySet {
+			err := s.setupTopology()
 
-			log.Printf("[PORTHOS] Connected to the broker and waiting for incoming rpc requests...")
-
-			for d := range s.requestChannel {
-				go func(d amqp.Delivery) {
-					err := s.processRequest(d)
-
-					if err != nil {
-						log.Printf("[PORTHOS] Error processing request: %s", err)
-					}
-				}(d)
+			if err != nil {
+				log.Printf("[PORTHOS] Error setting up topology after reconnection [%s]", err)
 			}
 
-			s.topologySet = false
-		} else {
-			time.Sleep(servePollInterval)
+			continue
 		}
+
+		s.pipeThroughServerListeningExtensions()
+		s.printRegisteredMethods()
+
+		log.Printf("[PORTHOS] Connected to the broker and waiting for incoming rpc requests...")
+
+		for d := range s.requestChannel {
+			go func(d amqp.Delivery) {
+				err := s.processRequest(d)
+
+				if err != nil {
+					log.Printf("[PORTHOS] Error processing request: %s", err)
+				}
+			}(d)
+		}
+
+		s.topologySet = false
 	}
 
 	for _, c := range s.closes {
