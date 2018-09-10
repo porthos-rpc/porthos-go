@@ -37,6 +37,8 @@ func main() {
 
 	i := 0
 
+	rs := b.NotifyReestablish()
+
 	for {
 		i++
 
@@ -45,7 +47,7 @@ func main() {
 		if err != nil {
 			if err == porthos.ErrBrokerNotConnected {
 				fmt.Printf("%s Waiting connection reestabilished.\n", err)
-				<-b.NotifyReestablish()
+				<-rs
 			} else {
 				fmt.Println(err)
 			}

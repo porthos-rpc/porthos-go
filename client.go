@@ -43,11 +43,13 @@ func NewClient(b *Broker, serviceName string, defaultTTL time.Duration) (*Client
 }
 
 func (c *Client) start() {
+	rs := c.broker.NotifyReestablish()
+
 	for !c.closed {
 		if !c.broker.IsConnected() {
 			log.Printf("[PORTHOS] Connection not established. Waiting connection to be reestablished.")
 
-			c.broker.WaitUntilConnectionReestablished()
+			<-rs
 
 			continue
 		}
