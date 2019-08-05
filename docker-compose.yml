@@ -1,13 +1,13 @@
 server:
   build: .
-  working_dir: /go/src/github.com/porthos-rpc/porthos-go
+  working_dir: /porthos-go
   command: dockerize -wait tcp://broker:5672 -timeout 60s go run _examples/server/example_server.go
   links:
    - broker
   environment:
     AMQP_URL: amqp://guest:guest@broker:5672/
   volumes:
-   - .:/go/src/github.com/porthos-rpc/porthos-go
+   - .:/porthos-go
   hostname: porthos
 broker:
   image: rabbitmq:3.7-management-alpine

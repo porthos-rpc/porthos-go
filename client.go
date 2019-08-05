@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
@@ -58,6 +59,7 @@ func (c *Client) start() {
 
 		if err != nil {
 			log.Printf("[PORTHOS] Error consuming responses. Error: %s", err)
+			time.Sleep(5 * time.Second)
 		} else {
 			log.Print("[PORTHOS] Consuming stopped.")
 		}
@@ -68,7 +70,7 @@ func (c *Client) consume() error {
 	ch, err := c.broker.openChannel()
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to open channel")
 	}
 
 	defer ch.Close()
@@ -84,7 +86,7 @@ func (c *Client) consume() error {
 	)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to declare queue")
 	}
 
 	dc, err := ch.Consume(
@@ -98,7 +100,7 @@ func (c *Client) consume() error {
 	)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to consume queue")
 	}
 
 	for d := range dc {

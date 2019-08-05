@@ -76,7 +76,7 @@ func (b *Broker) NotifyConnectionClose() <-chan error {
 	ch := make(chan error)
 
 	go func() {
-		ch <- <-b.connection.NotifyClose(make(chan *amqp.Error))
+		ch <- <-b.connection.NotifyClose(make(chan *amqp.Error, 1))
 	}()
 
 	return ch
@@ -122,13 +122,16 @@ func (b *Broker) openChannel() (*amqp.Channel, error) {
 func (b *Broker) reestablish() error {
 	conn, err := amqp.Dial(b.url)
 
+	if err != nil {
+		return err
+	}
+
 	b.m.Lock()
 	defer b.m.Unlock()
 
 	b.connection = conn
 
-	return err
-
+	return nil
 }
 
 func (b *Broker) handleConnectionClose() {
